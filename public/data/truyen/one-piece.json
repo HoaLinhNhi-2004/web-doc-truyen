@@ -1,0 +1,15 @@
+{
+  "id": "1",
+  "slug": "one-piece",
+  "ten_truyen": "One Piece",
+  "anh_bia": "/images/one-piece.jpg",
+  "tac_gia": "Oda Eiichiro",
+  "tinh_trang": "Đang tiến hành",
+  "the_loai": ["Action", "Adventure", "Comedy", "Fantasy"],
+  "mo_ta": "Một cậu bé tên Monkey D. Luffy, được khuyến khích bởi thần tượng thời thơ ấu Shanks 'Tóc đỏ', giong buồm ra khơi trên một hành trình tìm kho báu huyền thoại One Piece và trở thành Vua Hải Tặc.",
+  "danh_sach_chuong": [
+    { "id": "1", "ten_chuong": "Chương 1100" },
+    { "id": "2", "ten_chuong": "Chương 1099" },
+    { "id": "3", "ten_chuong": "Chương 1098" }
+  ]
+}

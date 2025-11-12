@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "slug": "one-piece",
+    "ten_truyen": "One Piece",
+    "anh_bia": "/images/one-piece.jpg",
+    "chuong_moi_nhat": "Chương 1100"
+  },
+  {
+    "id": "2",
+    "slug": "conan",
+    "ten_truyen": "Thám tử lừng danh Conan",
+    "anh_bia": "/images/conan.jpg",
+    "chuong_moi_nhat": "Chương 1050"
+  },
+  {
+    "id": "3",
+    "slug": "jujutsu-kaisen",
+    "ten_truyen": "Jujutsu Kaisen",
+    "anh_bia": "/images/jujutsu.jpg",
+    "chuong_moi_nhat": "Chương 250"
+  }
+]

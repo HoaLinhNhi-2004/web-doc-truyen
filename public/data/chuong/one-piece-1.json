@@ -1,0 +1,13 @@
+{
+  "id": "1",
+  "ten_chuong": "Chương 1100",
+  "ten_truyen": "One Piece",
+  "slug": "one-piece",
+  "danh_sach_anh": [
+    "https://example.com/image1.jpg",
+    "https://example.com/image2.jpg",
+    "https://example.com/image3.jpg",
+    "https://example.com/image4.jpg",
+    "https://example.com/image5.jpg"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "2",
+  "slug": "conan",
+  "ten_truyen": "Thám tử lừng danh Conan",
+  "anh_bia": "/images/conan.jpg",
+  "tac_gia": "Aoyama Gosho",
+  "tinh_trang": "Đang tiến hành",
+  "the_loai": ["Mystery", "Adventure", "Comedy", "Detective"],
+  "mo_ta": "Kudo Shinichi là một thám tử trung học. Trong một lần điều tra, cậu bị Tổ chức Áo đen ép uống một loại thuốc độc, khiến cơ thể cậu bị teo nhỏ thành một đứa trẻ 6 tuổi. Cậu lấy tên mới là Edogawa Conan và tiếp tục phá án.",
+  "danh_sach_chuong": [
+    { "id": "1", "ten_chuong": "Chương 1050" },
+    { "id": "2", "ten_chuong": "Chương 1049" },
+    { "id": "3", "ten_chuong": "Chương 1048" }
+  ]
+}
