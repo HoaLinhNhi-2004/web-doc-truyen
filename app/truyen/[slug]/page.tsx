@@ -1,5 +1,6 @@
 // 📁 app/truyen/[slug]/page.tsx
 import Image from 'next/image';
+import FollowButton from '@/app/components/FollowButton';
 
 // 🧩 1️⃣ Định nghĩa kiểu dữ liệu khớp với file JSON
 interface Chapter {
@@ -47,11 +48,18 @@ export default async function StoryDetailPage({
   // Gọi hàm lấy dữ liệu
   const story = await getStoryDetails(slug);
 
+  // 2. Chuẩn bị prop cho FollowButton
+  const storyDataForButton = {
+    slug: story.slug,
+    ten_truyen: story.ten_truyen,
+    anh_bia: story.anh_bia
+  };
+
   // 🖼️ 4️⃣ Giao diện hiển thị
   return (
-    <div className="container mx-auto max-w-4xl p-4">
+    <div className="container mx-auto p-4 pb-12">
       {/* --- Phần Thông tin truyện --- */}
-      <div className="flex flex-col md:flex-row gap-8">
+      <div className="flex flex-col md:flex-row gap-8 rounded-lg border bg-card p-6 border-border">
         {/* Cột trái: Ảnh bìa */}
         <div className="w-full md:w-1/3 shrink-0">
           <Image
@@ -66,30 +74,32 @@ export default async function StoryDetailPage({
 
         {/* Cột phải: Thông tin */}
         <div className="w-full md:w-2/3">
-          <h1 className="text-3xl font-bold mb-2">{story.ten_truyen}</h1>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">{story.ten_truyen}</h1>
 
           {/* Thể loại */}
           <div className="flex flex-wrap gap-2 mb-4">
             {story.the_loai.map((genre) => (
               <span
                 key={genre}
-                className="px-3 py-1 bg-gray-200 text-gray-700 rounded-full text-sm"
+                className="px-3 py-1 bg-muted text-muted-foreground rounded-full text-sm"
               >
                 {genre}
               </span>
             ))}
           </div>
 
-          <p className="mb-2">
+          <p className="mb-2 text-muted-foreground">
             <strong>Tác giả:</strong> {story.tac_gia}
           </p>
-          <p className="mb-4">
+          <p className="mb-4 text-muted-foreground">
             <strong>Tình trạng:</strong> {story.tinh_trang}
           </p>
 
           {/* Mô tả */}
           <h2 className="text-xl font-semibold mb-2">Mô tả</h2>
           <p className="text-gray-700 leading-relaxed">{story.mo_ta}</p>
+
+          <FollowButton story={storyDataForButton} />
         </div>
       </div>
 
@@ -102,7 +112,7 @@ export default async function StoryDetailPage({
           {story.danh_sach_chuong.map((chapter) => (
             <li
               key={chapter.id}
-              className="border rounded-md p-3 hover:bg-gray-50 transition"
+              className="border rounded-md p-3 hover:bg-muted border-border"
             >
               <a
                 href={`/truyen/${slug}/${chapter.id}`}
