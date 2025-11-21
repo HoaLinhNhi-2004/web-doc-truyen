@@ -1,5 +1,4 @@
-// app/components/Header.tsx
-"use client"; // BẮT BUỘC
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -12,54 +11,65 @@ export default function Header() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query) return;
-    router.push(`/search?q=${query}`);
+    if (!query.trim()) return;
+    router.push(`/search?q=${encodeURIComponent(query)}`);
   };
 
   return (
-    <header className="bg-gray-800 text-white shadow-md">
-      <nav className="container mx-auto flex items-center justify-between p-4">
-        
-        {/* Phần Logo và "Theo dõi" */}
+    <header className="fixed inset-x-0 top-0 z-50">
+      {/* Glass background – trong suốt + blur */}
+      <div className="absolute inset-0 bg-white/5 dark:bg-black/10 backdrop-blur-lg" />
+      
+      {/* Đường viền dưới mờ nhẹ để phân cách với hero */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-white/10 dark:bg-white/5" />
+
+      <nav className="relative container mx-auto flex items-center justify-between p-4">
+        {/* Logo + Menu trái */}
         <div className="flex items-center gap-6">
-          <a href="/" className="text-2xl font-bold text-white hover:text-gray-300">
+          <a href="/" className="text-2xl font-bold text-white drop-shadow-md hover:text-white/90 transition">
             DocTruyen
           </a>
-          <a href="/theo-doi" className="text-lg font-medium text-gray-300 hover:text-white">
+          <a href="/" className="text-lg font-medium text-white/90 hover:text-white transition">
+            Trang chủ
+          </a>
+          <a href="/theo-doi" className="text-lg font-medium text-white/90 hover:text-white transition">
             Theo dõi
+          </a>
+          <a href="/the-loai" className="text-lg font-medium text-white/90 hover:text-white transition">
+            Thể loại
+          </a>
+          <a href="/truyen-hot" className="text-lg font-medium text-white/90 hover:text-white transition">
+            Truyện hot
           </a>
         </div>
 
-        {/* Phần Tìm kiếm, Nút Theme, và Nút Đăng nhập */}
+        {/* Tìm kiếm + Theme + Đăng nhập */}
         <div className="flex items-center gap-4">
-          
-          {/* Thanh tìm kiếm (Đã điền đầy đủ) */}
-          <form onSubmit={handleSearch} className="w-full max-w-xs">
-            <div className="flex">
-              <input 
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Tìm truyện..."
-                className="grow rounded-l-md border border-gray-600 bg-gray-700 p-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button 
-                type="submit"
-                className="rounded-r-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-              >
-                Tìm
-              </button>
-            </div>
+          {/* Thanh tìm kiếm – cũng trong suốt */}
+          <form onSubmit={handleSearch} className="flex">
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Tìm truyện..."
+              className="w-48 md:w-64 rounded-l-full border border-white/20 bg-white/10 dark:bg-black/20 px-4 py-2 text-white placeholder-white/60 backdrop-blur focus:outline-none focus:border-white/50 transition"
+            />
+            <button
+              type="submit"
+              className="rounded-r-full bg-blue-600 hover:bg-blue-700 px-5 py-2 text-white font-medium transition"
+            >
+              Tìm
+            </button>
           </form>
 
-          {/* Nút Chế độ Tối */}
+          {/* Nút đổi theme */}
           <ThemeToggleButton />
 
-          {/* Nút Đăng nhập / Đăng xuất (Đã sửa) */}
+          {/* Đăng nhập / UserButton */}
           <SignedOut>
-            <a 
-              href="/sign-in" 
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+            <a
+              href="/sign-in"
+              className="rounded-full bg-blue-600 hover:bg-blue-700 px-5 py-2 text-white font-medium transition shadow-lg"
             >
               Đăng nhập
             </a>
@@ -68,7 +78,6 @@ export default function Header() {
           <SignedIn>
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
-
         </div>
       </nav>
     </header>

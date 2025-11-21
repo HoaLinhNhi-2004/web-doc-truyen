@@ -1,7 +1,7 @@
-// app/page.tsx
+// app/page.tsx ← PHIÊN BẢN ỔN ĐỊNH 100%, HERO SLIDER HIỆN ĐẸP NHƯ CŨ
+import HeroSlider from "./components/HeroSlider";
 import StoryCard from "./components/StoryCard";
 
-// Định nghĩa kiểu dữ liệu cho một truyện, khớp với file JSON
 interface Story {
   id: string;
   slug: string;
@@ -10,43 +10,126 @@ interface Story {
   chuong_moi_nhat: string;
 }
 
-// Hàm để lấy dữ liệu
-// Dùng 'fetch' để gọi đến API giả (file JSON trong public)
-async function getNewStories() {
-  // Đây là URL API giả của bạn
-  // Khi backend thật hoàn thành, bạn CHỈ CẦN đổi URL này
-  const res = await fetch('http://localhost:3000/data/truyen-moi-nhat.json');
-  
+async function getNewStories(): Promise<Story[]> {
+  const res = await fetch("http://localhost:3000/data/truyen-moi-nhat.json", {
+    next: { revalidate: 60 },
+  });
   if (!res.ok) {
-    throw new Error('Không thể tải dữ liệu');
+    console.error("Lỗi tải dữ liệu truyện mới nhất");
+    return [];
   }
-  
   const data: Story[] = await res.json();
   return data;
 }
 
-// Đây là component Trang chủ
+function Section({
+  title,
+  subtitle,
+  stories,
+  showArrows = true,
+}: {
+  title: string;
+  subtitle?: string;
+  stories: Story[];
+  showArrows?: boolean;
+}) {
+  return (
+    <section className="py-12">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-end mb-6">
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-red-500 flex items-center gap-4">
+              <span className="w-2 h-12 bg-red-500 rounded-full"></span>
+              {title}
+            </h2>
+            {subtitle && <p className="text-muted-foreground mt-2">{subtitle}</p>}
+          </div>
+
+          {showArrows && stories.length > 4 && (
+            <div className="hidden md:flex gap-3">
+              <button className="w-12 h-12 rounded-full border-2 border-gray-300 hover:border-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center text-2xl font-light">
+                Previous
+              </button>
+              <button className="w-12 h-12 rounded-full border-2 border-gray-300 hover:border-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center text-2xl font-light">
+                Next
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4 -mx-4 px-4">
+          {stories.map((story) => (
+            <div
+              key={story.id}
+              className="flex-none w-48 md:w-56 lg:w-60 snap-center group"
+            >
+              <StoryCard {...story} />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function HomePage() {
-  // Gọi hàm lấy dữ liệu
   const newStories = await getNewStories();
+  const stories = newStories.length > 0 ? newStories : [];
 
   return (
-    <main className="container mx-auto p-4">
-      <h1 className="mb-6 text-2xl font-bold">Truyện Mới Cập Nhật</h1>
+    <>
+      {/* ĐẨY NỘI DUNG XUỐNG ĐỂ KHÔNG BỊ HEADER ĐÈ */}
+      <div className="pt-24 md:pt-28" />
 
-      {/* Dùng Tailwind CSS Grid để tạo lưới truyện */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-        {/* Lặp qua mảng dữ liệu và render component StoryCard */}
-        {newStories.map((story) => (
-          <StoryCard
-            key={story.id}
-            slug={story.slug}
-            ten_truyen={story.ten_truyen}
-            anh_bia={story.anh_bia}
-            chuong_moi_nhat={story.chuong_moi_nhat}
-          />
-        ))}
+      {/* HERO SLIDER – HIỆN ĐẸP, KHÔNG BỊ ẨN */}
+      <div className="relative -top-24 md:-top-28">
+        <HeroSlider />
       </div>
-    </main>
+
+      {/* TRUYỆN MỚI CẬP NHẬT */}
+      <section className="container mx-auto px-4 py-12 bg-background/80 backdrop-blur-sm">
+        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-foreground">
+          Truyện Mới Cập Nhật
+        </h2>
+
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4 md:gap-6">
+          {stories.length === 0 ? (
+            <p className="col-span-full text-center py-10 text-muted-foreground">
+              Đang tải dữ liệu...
+            </p>
+          ) : (
+            stories.slice(0, 24).map((story) => (
+              <StoryCard
+                key={story.id}
+                slug={story.slug}
+                ten_truyen={story.ten_truyen}
+                anh_bia={story.anh_bia}
+                chuong_moi_nhat={story.chuong_moi_nhat}
+              />
+            ))
+          )}
+        </div>
+      </section>
+
+      {/* CÁC SECTION NGANG */}
+      <Section
+        title="TOP THỊNH HÀNH"
+        subtitle="Truyện được mọi người yêu thích nhất tuần này."
+        stories={stories.slice(0, 15)}
+      />
+
+      <Section
+        title="TRUYỆN HOT"
+        subtitle="Đang làm mưa làm gió trên bảng xếp hạng."
+        stories={stories.slice(3, 18)}
+      />
+
+      <Section
+        title="THEO DÕI NHIỀU NHẤT"
+        subtitle="Hàng triệu người đang chờ chap mới."
+        stories={stories.slice(8, 23)}
+        showArrows={true}
+      />
+    </>
   );
 }
