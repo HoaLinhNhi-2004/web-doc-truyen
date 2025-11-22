@@ -26,6 +26,10 @@
   --border: #374151; /* Viền (tối) (gray-700) */
 }
 
+html {
+  scrollbar-gutter: stable both-edges;
+}
+
 /* 3. Áp dụng các biến đó vào body */
 body {
   background: var(--background);
@@ -33,4 +37,5 @@ body {
   transition-property: background-color, color;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 200ms;
+  overflow-y: scroll;
 }

@@ -1,4 +1,4 @@
-// app/page.tsx ← PHIÊN BẢN ỔN ĐỊNH 100%, HERO SLIDER HIỆN ĐẸP NHƯ CŨ
+// app/page.tsx ← CHỈ SỬA PHẦN TRUYỆN MỚI CẬP NHẬT, GIỐNG HỆT TOP THỊNH HÀNH
 import HeroSlider from "./components/HeroSlider";
 import StoryCard from "./components/StoryCard";
 
@@ -81,37 +81,51 @@ export default async function HomePage() {
       {/* ĐẨY NỘI DUNG XUỐNG ĐỂ KHÔNG BỊ HEADER ĐÈ */}
       <div className="pt-24 md:pt-28" />
 
-      {/* HERO SLIDER – HIỆN ĐẸP, KHÔNG BỊ ẨN */}
+      {/* HERO SLIDER – GIỮ NGUYÊN */}
       <div className="relative -top-24 md:-top-28">
         <HeroSlider />
       </div>
 
-      {/* TRUYỆN MỚI CẬP NHẬT */}
-      <section className="container mx-auto px-4 py-12 bg-background/80 backdrop-blur-sm">
-        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-foreground">
-          Truyện Mới Cập Nhật
-        </h2>
+      {/* TRUYỆN MỚI CẬP NHẬT – ĐÃ ĐẸP GIỐNG HỆT TOP THỊNH HÀNH */}
+      <section className="py-12">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-end mb-6">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-red-500 flex items-center gap-4">
+                <span className="w-2 h-12 bg-red-500 rounded-full"></span>
+                TRUYỆN MỚI CẬP NHẬT
+              </h2>
+              <p className="text-muted-foreground mt-2">
+                Những bộ truyện vừa được cập nhật chương mới nhất.
+              </p>
+            </div>
+          </div>
 
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-4 md:gap-6">
-          {stories.length === 0 ? (
-            <p className="col-span-full text-center py-10 text-muted-foreground">
-              Đang tải dữ liệu...
-            </p>
-          ) : (
-            stories.slice(0, 24).map((story) => (
-              <StoryCard
-                key={story.id}
-                slug={story.slug}
-                ten_truyen={story.ten_truyen}
-                anh_bia={story.anh_bia}
-                chuong_moi_nhat={story.chuong_moi_nhat}
-              />
-            ))
-          )}
+          <div className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4 -mx-4 px-4">
+            {stories.length === 0 ? (
+              <p className="text-center py-20 text-muted-foreground text-xl w-full">
+                Đang tải dữ liệu...
+              </p>
+            ) : (
+              stories.slice(0, 24).map((story) => (
+                <div
+                  key={story.id}
+                  className="flex-none w-48 md:w-56 lg:w-60 snap-center group"
+                >
+                  <StoryCard
+                    slug={story.slug}
+                    ten_truyen={story.ten_truyen}
+                    anh_bia={story.anh_bia}
+                    chuong_moi_nhat={story.chuong_moi_nhat}
+                  />
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
 
-      {/* CÁC SECTION NGANG */}
+      {/* CÁC SECTION KHÁC GIỮ NGUYÊN 100% */}
       <Section
         title="TOP THỊNH HÀNH"
         subtitle="Truyện được mọi người yêu thích nhất tuần này."
