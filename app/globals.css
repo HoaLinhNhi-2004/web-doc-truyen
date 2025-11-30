@@ -1,3 +1,4 @@
+/* globals.css */
 @import "tailwindcss";
 
 /* 1. Định nghĩa biến CSS cho Chế độ Sáng */
@@ -11,10 +12,11 @@
   --muted: #f3f4f6; /* Nền xám nhạt (gray-100) */
   --muted-foreground: #6b7280; /* Chữ xám đậm (gray-500) */
   --border: #e5e7eb; /* Viền (gray-200) */
+  --footer-bg: #f3f4f6;  /* MỚI: Màu riêng cho footer ở light (muted light) */
 }
 
 /* 2. Định nghĩa biến CSS cho Chế độ Tối */
-.dark:root {
+.dark {
   --background: #111827; /* Nền đen xám (gray-900) */
   --foreground: #f9fafb; /* Chữ trắng xám (gray-50) */
 
@@ -24,6 +26,7 @@
   --muted: #374151; /* Nền xám tối (gray-700) */
   --muted-foreground: #d1d5db; /* Chữ xám nhạt (gray-300) */
   --border: #374151; /* Viền (tối) (gray-700) */
+  --footer-bg: #0f172a;  /* MỚI: Màu riêng cho footer ở dark (slate-900, tối hơn gray-900) */
 }
 
 html {

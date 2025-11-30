@@ -1,9 +1,8 @@
+// tailwind.config.ts
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-
   darkMode: 'class',
-  
   content: [
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -22,6 +21,7 @@ const config: Config = {
         muted: 'var(--muted)',
         'muted-foreground': 'var(--muted-foreground)',
         border: 'var(--border)',
+        'footer-bg': 'var(--footer-bg)',  // MỚI: Thêm dòng này
       },
       // (Phần extend cũ, giữ lại nếu bạn có)
       backgroundImage: {

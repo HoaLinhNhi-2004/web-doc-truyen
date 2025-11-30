@@ -19,7 +19,7 @@ export default function Header() {
     <header className="fixed inset-x-0 top-0 z-50">
       {/* Glass background + viền dưới */}
       <div className="absolute inset-0 bg-white/10 dark:bg-black/30 backdrop-blur-lg" />
-      <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent dark:via-white/10" />
+      <div className="absolute inset-x-0 bottom-0 h-px bg-linear-to-r from-transparent via-white/20 to-transparent dark:via-white/10" />
 
       <nav className="relative container mx-auto flex items-center justify-between p-4">
         {/* Logo + Menu trái */}

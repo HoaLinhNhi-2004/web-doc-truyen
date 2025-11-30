@@ -1,9 +1,9 @@
-// app/page.tsx ← CHỈ SỬA PHẦN TRUYỆN MỚI CẬP NHẬT, GIỐNG HỆT TOP THỊNH HÀNH
+// app/page.tsx
 import HeroSlider from "./components/HeroSlider";
 import StoryCard from "./components/StoryCard";
 
 interface Story {
-  id: string;
+  id?: string;
   slug: string;
   ten_truyen: string;
   anh_bia: string;
@@ -12,29 +12,28 @@ interface Story {
 
 async function getNewStories(): Promise<Story[]> {
   const res = await fetch("http://localhost:3000/data/truyen-moi-nhat.json", {
-    next: { revalidate: 60 },
+    cache: "no-store", // BẮT BUỘC khi dev để thấy thay đổi ngay
   });
+
   if (!res.ok) {
-    console.error("Lỗi tải dữ liệu truyện mới nhất");
+    console.error("Lỗi tải dữ liệu truyện");
     return [];
   }
-  const data: Story[] = await res.json();
-  return data;
+  return await res.json();
 }
 
+// Component Section chung – đẹp, có nút ← →
 function Section({
   title,
   subtitle,
   stories,
-  showArrows = true,
 }: {
   title: string;
   subtitle?: string;
   stories: Story[];
-  showArrows?: boolean;
 }) {
   return (
-    <section className="py-12">
+    <section className="py-12 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-end mb-6">
           <div>
@@ -45,23 +44,23 @@ function Section({
             {subtitle && <p className="text-muted-foreground mt-2">{subtitle}</p>}
           </div>
 
-          {showArrows && stories.length > 4 && (
-            <div className="hidden md:flex gap-3">
-              <button className="w-12 h-12 rounded-full border-2 border-gray-300 hover:border-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center text-2xl font-light">
-                Previous
+          {stories.length > 4 && (
+            <div className="hidden md:flex items-center gap-3">
+              <button className="w-12 h-12 rounded-full border-2 border-gray-400 hover:border-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center text-2xl font-light">
+                ←
               </button>
-              <button className="w-12 h-12 rounded-full border-2 border-gray-300 hover:border-red-500 hover:bg-red-500 hover:text-white transition flex items-center justify-center text-2xl font-light">
-                Next
+              <button className="w-12 h-12 rounded-full border-2 border-gray-400 hover:border-red-500 hover:bg-red-500 hover:text-white transition-all flex items-center justify-center text-2xl font-light">
+                →
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4 -mx-4 px-4">
+        <div className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-6 -mx-4 px-4">
           {stories.map((story) => (
             <div
-              key={story.id}
-              className="flex-none w-48 md:w-56 lg:w-60 snap-center group"
+              key={story.slug}
+              className="flex-none w-48 md:w-56 lg:w-64 snap-center"
             >
               <StoryCard {...story} />
             </div>
@@ -73,21 +72,17 @@ function Section({
 }
 
 export default async function HomePage() {
-  const newStories = await getNewStories();
-  const stories = newStories.length > 0 ? newStories : [];
+  const stories = await getNewStories();
 
   return (
     <>
-      {/* ĐẨY NỘI DUNG XUỐNG ĐỂ KHÔNG BỊ HEADER ĐÈ */}
       <div className="pt-24 md:pt-28" />
-
-      {/* HERO SLIDER – GIỮ NGUYÊN */}
       <div className="relative -top-24 md:-top-28">
         <HeroSlider />
       </div>
 
-      {/* TRUYỆN MỚI CẬP NHẬT – ĐÃ ĐẸP GIỐNG HỆT TOP THỊNH HÀNH */}
-      <section className="py-12">
+      {/* TRUYỆN MỚI CẬP NHẬT */}
+      <section className="py-12 bg-background">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-end mb-6">
             <div>
@@ -101,23 +96,18 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="flex gap-5 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-4 -mx-4 px-4">
+          <div className="flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-6 -mx-4 px-4">
             {stories.length === 0 ? (
-              <p className="text-center py-20 text-muted-foreground text-xl w-full">
+              <p className="text-center w-full py-20 text-xl text-muted-foreground">
                 Đang tải dữ liệu...
               </p>
             ) : (
               stories.slice(0, 24).map((story) => (
                 <div
-                  key={story.id}
-                  className="flex-none w-48 md:w-56 lg:w-60 snap-center group"
+                  key={story.slug}
+                  className="flex-none w-48 md:w-56 lg:w-64 snap-center"
                 >
-                  <StoryCard
-                    slug={story.slug}
-                    ten_truyen={story.ten_truyen}
-                    anh_bia={story.anh_bia}
-                    chuong_moi_nhat={story.chuong_moi_nhat}
-                  />
+                  <StoryCard {...story} />
                 </div>
               ))
             )}
@@ -125,7 +115,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* CÁC SECTION KHÁC GIỮ NGUYÊN 100% */}
+      {/* 3 SECTION ĐỒNG NHẤT + CÓ NÚT ← → */}
       <Section
         title="TOP THỊNH HÀNH"
         subtitle="Truyện được mọi người yêu thích nhất tuần này."
@@ -142,7 +132,6 @@ export default async function HomePage() {
         title="THEO DÕI NHIỀU NHẤT"
         subtitle="Hàng triệu người đang chờ chap mới."
         stories={stories.slice(8, 23)}
-        showArrows={true}
       />
     </>
   );

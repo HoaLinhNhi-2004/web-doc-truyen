@@ -4,6 +4,7 @@ import "./globals.css";
 
 // 1. Import Header
 import Header from "./components/Header";
+import Footer from "./components/Footer";
 import { ThemeProvider } from "./context/ThemeContext";
 import ThemeScript from "./components/ThemeScript";
 import { ClerkProvider } from '@clerk/nextjs'
@@ -31,6 +32,7 @@ export default function RootLayout({
         <ThemeProvider>
           <Header />
           {children}
+          <Footer />
         </ThemeProvider>
       </body>
     </html>
