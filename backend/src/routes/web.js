@@ -6,6 +6,12 @@ import UserController from '../controllers/UserController.js';
 import CommentController from '../controllers/CommentController.js';
 import RatingController from '../controllers/RatingController.js';
 import PaymentController from '../controllers/PaymentController.js';
+import AdminController from '../controllers/AdminController.js';
+import adminMiddleware from '../middlewares/adminMiddleware.js';
+import UploadController from '../controllers/UploadController.js'; // <-- Import mới
+import upload from '../config/upload.js';
+
+
 const router = express.Router();
 
 const initRoutes = (app) => {
@@ -53,6 +59,40 @@ const initRoutes = (app) => {
     // Mua chương
     router.post('/api/payment/unlock', authMiddleware, PaymentController.unlockChapter);
 
+    // ============================================
+    // 7. NHÓM ADMIN (CMS) - BẢO MẬT CAO
+    // ============================================
+    
+    // --- QUẢN LÝ TRUYỆN ---
+    router.post('/api/admin/stories', authMiddleware, adminMiddleware, AdminController.createStory);
+    router.put('/api/admin/stories/:id', authMiddleware, adminMiddleware, AdminController.updateStory);
+    router.delete('/api/admin/stories/:id', authMiddleware, adminMiddleware, AdminController.deleteStory);
+
+    // --- QUẢN LÝ CHƯƠNG ---
+    router.post('/api/admin/stories/:storyId/chapters', authMiddleware, adminMiddleware, AdminController.createChapter);
+
+    // --- QUẢN LÝ USER ---
+    router.get('/api/admin/users', authMiddleware, adminMiddleware, AdminController.getUsers);
+    router.post('/api/admin/users/:id/ban', authMiddleware, adminMiddleware, AdminController.banUser);
+
+    // --- QUẢN LÝ THỂ LOẠI ---
+    router.post('/api/admin/categories', authMiddleware, adminMiddleware, AdminController.createCategory);
+    // --- QUẢN LÝ TIỀN TỆ ---
+    // Admin nạp tiền cho user bất kỳ
+    router.post('/api/admin/users/deposit', authMiddleware, adminMiddleware, AdminController.addCoins);
+
+    // --- QUẢN LÝ GIÁ CHƯƠNG ---
+    // Khóa chương/Set giá (Gửi body { price: 100 })
+    router.put('/api/admin/chapters/:id/price', authMiddleware, adminMiddleware, AdminController.setChapterPrice);
+
+
+    // ============================================
+    // 8. TIỆN ÍCH HỆ THỐNG (UPLOAD)
+    // ============================================
+    
+    // Upload 1 ảnh (Dùng cho ảnh bìa truyện)
+    // upload.single('image') nghĩa là bên Postman key phải đặt tên là 'image'
+    router.post('/api/upload', authMiddleware, adminMiddleware, upload.single('image'), UploadController.uploadImage);
 
 
     return app.use('/', router);
