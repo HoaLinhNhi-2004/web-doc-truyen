@@ -1,86 +1,95 @@
-// app/components/Footer.tsx
 import Image from "next/image";
 import Link from "next/link";
+import { Facebook, Mail, Github, MapPin } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-footer-bg text-foreground">
-      <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Cột 1: Logo + Mô tả */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Image
-                src="/logo-nettruyen.png"
-                alt="NetTruyen"
-                width={220}
-                height={80}
-                className="drop-shadow-lg"
-                priority
-              />
+    // Thêm border-t để tạo vạch ngăn cách rõ ràng
+    <footer className="bg-[var(--footer-bg)] text-foreground border-t border-[var(--border)] transition-colors duration-200">
+      <div className="container mx-auto px-4 py-8"> {/* Giảm py-12 xuống py-8 cho gọn */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* Cột 1: Logo & Giới thiệu (Chiếm 5 phần) */}
+          <div className="lg:col-span-5 space-y-4">
+            <Link href="/" className="inline-block">
+               {/* Nếu chưa có logo thật thì dùng text thay thế để đỡ lỗi ảnh */}
+               <div className="flex items-center gap-2">
+                  <Image
+                    src="/logo-nettruyen.png" 
+                    alt="NetTruyen"
+                    width={180}
+                    height={60}
+                    className="object-contain"
+                    // Thêm fallback nếu ảnh lỗi để không bị vỡ layout
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                  />
+               </div>
+            </Link>
+            <p className="text-sm leading-relaxed text-muted-foreground pr-4 text-justify">
+              Kho truyện tranh đa dạng, cập nhật liên tục 24/7. 
+              Nơi thỏa mãn đam mê với hàng ngàn đầu truyện hành động, 
+              tình cảm, hài hước... Giao diện tối ưu trải nghiệm người dùng.
+            </p>
+            
+            {/* Social Icons - Thay thế cho đống link rác */}
+            <div className="flex gap-4 pt-2">
+              <Link href="#" className="p-2 bg-[var(--card)] rounded-full hover:text-blue-600 transition shadow-sm border border-[var(--border)]">
+                <Facebook size={18} />
+              </Link>
+              <Link href="#" className="p-2 bg-[var(--card)] rounded-full hover:text-red-500 transition shadow-sm border border-[var(--border)]">
+                <Mail size={18} />
+              </Link>
+              <Link href="#" className="p-2 bg-[var(--card)] rounded-full hover:text-gray-900 dark:hover:text-white transition shadow-sm border border-[var(--border)]">
+                <Github size={18} />
+              </Link>
             </div>
-            <p className="text-sm leading-relaxed text-muted-foreground max-w-md">
-              Truyện tranh online, đọc truyện tranh miễn phí, kho truyện tranh đa dạng bảng phong phú các thể loại: hành động, tình cảm, hài hước, kinh dị... 
-              Cập nhật liên tục 24/7, giao diện đẹp, tốc độ tải nhanh.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              NetTruyen - Nơi gặp gỡ của những tín đồ truyện tranh Việt Nam
-            </p>
           </div>
 
-          {/* Cột 2: Link nhanh (giả lập như bản thật) */}
-          <div className="space-y-4">
-            <h3 className="text-foreground font-bold text-lg mb-4">Liên Kết Nhanh</h3>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Link href="/" className="hover:text-red-500 transition">Trang chủ</Link>
-              <Link href="/the-loai" className="hover:text-red-500 transition">Thể loại</Link>
-              <Link href="/truyen-moi" className="hover:text-red-500 transition">Truyện mới</Link>
-              <Link href="/top" className="hover:text-red-500 transition">Bảng xếp hạng</Link>
-              <Link href="/theo-doi" className="hover:text-red-500 transition">Theo dõi</Link>
-              <Link href="/lich-su" className="hover:text-red-500 transition">Lịch sử</Link>
-              <Link href="/random" className="hover:text-red-500 transition">Ngẫu nhiên</Link>
-              <Link href="/lien-he" className="hover:text-red-500 transition">Liên hệ</Link>
-            </div>
+          {/* Cột 2: Liên kết nhanh (Chiếm 3 phần) */}
+          <div className="lg:col-span-3">
+            <h3 className="font-bold text-lg mb-4 text-foreground">Khám Phá</h3>
+            <ul className="space-y-2 text-sm text-muted-foreground">
+              <li><Link href="/truyen-moi" className="hover:text-orange-500 transition block py-1">Truyện mới cập nhật</Link></li>
+              <li><Link href="/top" className="hover:text-orange-500 transition block py-1">Bảng xếp hạng</Link></li>
+              <li><Link href="/category" className="hover:text-orange-500 transition block py-1">Thể loại truyện</Link></li>
+              <li><Link href="/tim-truyen" className="hover:text-orange-500 transition block py-1">Tìm truyện nâng cao</Link></li>
+              <li><Link href="/lich-su" className="hover:text-orange-500 transition block py-1">Lịch sử đọc truyện</Link></li>
+            </ul>
           </div>
 
-          {/* Cột 3: Link "ngầm" + Email + Nhân vật */}
-          <div className="space-y-6">
-            {/* Nhân vật anime bên phải (giống bản thật) */}
-            <div className="flex justify-end -mr-10 -mt-10 relative">
-              <div className="relative">
-                <Image
+          {/* Cột 3: Thông tin liên hệ (Chiếm 4 phần) */}
+          <div className="lg:col-span-4 flex flex-col justify-between">
+            <div>
+              <h3 className="font-bold text-lg mb-4 text-foreground">Liên Hệ</h3>
+              <ul className="space-y-3 text-sm text-muted-foreground">
+                <li className="flex items-start gap-3">
+                  <Mail size={18} className="mt-0.5 shrink-0" />
+                  <span>hangtruyenbiz@gmail.com</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <MapPin size={18} className="mt-0.5 shrink-0" />
+                  <span>Việt Nam</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Ảnh nhân vật trang trí - Giữ lại nhưng làm gọn hơn */}
+            <div className="hidden lg:block self-end mt-4 -mb-4 opacity-80 hover:opacity-100 transition-opacity">
+                 <Image
                   src="/footer-characters.png"
-                  alt="NetTruyen Characters"
-                  width={380}
-                  height={220}
-                  className="object-contain drop-shadow-2xl"
+                  alt="Characters"
+                  width={200} // Giảm size xuống cho đỡ choán chỗ
+                  height={120}
+                  className="object-contain"
                 />
-              </div>
-            </div>
-
-            {/* Link cá cược + email (như bản gốc, font nhỏ xíu) */}
-            <div className="text-xs text-muted-foreground space-y-2 text-right">
-              <p className="leading-relaxed">
-                nettruyen https://aaa79.gifts/ abababababababababababababababababa
-              </p>
-              <p className="leading-relaxed">
-                https://need89.three/ https://inject.us.com/ sdfhjkdfshjkdfhjkdjkolasdjklasdjklqweiojsdfhjasdjklasdfjkl 
-                hjkashjkasjoasdopjasjioasnjksdkldjklaskljasjklasdjklskjlskjasjklasjkl
-              </p>
-              <p className="mt-3 text-yellow-500 font-medium">
-                Liên hệ: hangtruyenbiz@gmail.com
-              </p>
             </div>
           </div>
         </div>
 
-        {/* Copyright */}
-        <div className="mt-12 pt-8 text-center">
-          <p className="text-sm text-muted-foreground">
-            Copyright © 2024-2025 NetTruyen. All rights reserved. 
-            <span className="block mt-2 text-xs">
-              Bản quyền thuộc về đội ngũ phát triển NetTruyen. Mọi hành vi sao chép cần được sự cho phép.
-            </span>
+        {/* Bản quyền */}
+        <div className="mt-8 pt-6 border-t border-[var(--border)] text-center">
+          <p className="text-xs text-muted-foreground">
+            Copyright © {new Date().getFullYear()} NetTruyen. All rights reserved.
           </p>
         </div>
       </div>
