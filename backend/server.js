@@ -1,40 +1,44 @@
 import express from "express";
-import dotenv from "dotenv"; // Sửa 1: Dùng import thay vì require cho đồng bộ
+import dotenv from "dotenv"; 
 import cors from "cors";
-import path from 'path';
-// Lưu ý đường dẫn: Nếu server.js nằm ngoài cùng (ngang hàng src) thì phải là ./src/models/index.js
+// import path from 'path'; // Có thể bỏ nếu không dùng
 import { syncDatabase } from './src/models/index.js'; 
 import initRoutes from "./src/routes/web.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+// Đảm bảo PORT là 5000 để khớp với frontend
+const PORT = process.env.PORT || 5000;
 
-// Cấu hình CORS
+// Cấu hình CORS: Cho phép Frontend (cổng 3000) gọi sang
 app.use(cors({
-    origin: process.env.CLIENT_URL || "*", // Cho phép tất cả nếu chưa config CLIENT_URL
+    origin: true, // Cho phép tất cả (để test cho dễ)
+    credentials: true, // Cho phép gửi cookie/token
     methods: ["GET", "POST", "PUT", "DELETE"]
 }));
 
-// Middleware xử lý dữ liệu
+// Middleware xử lý dữ liệu gửi lên
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-
-// Dòng này giúp link http://localhost:3000/uploads/anh.jpg hoạt động
+// Link ảnh tĩnh
 app.use('/uploads', express.static('uploads'));
 
-// Đồng bộ Database (Tạo bảng)
+// Khởi tạo các Route API
 initRoutes(app);
-syncDatabase();
 
-// Route test
+// Đồng bộ Database (Tạo bảng)
+syncDatabase(); 
+
+// Route test server
 app.get('/', (req, res) => {
-    res.send('Server Web Truyện Tranh đang chạy ổn định!');
+    res.send('Server Backend đang chạy ngon lành!');
 });
 
-// Khởi động server
-const listener = app.listen(PORT, () => { // Sửa 2: Dùng biến PORT (viết hoa) thay vì port (thường)
+// --- PHẦN QUAN TRỌNG NHẤT: SỬA LỖI SOCKET HANG UP ---
+// Thêm tham số '0.0.0.0' vào hàm listen
+const listener = app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 Server is running on the port ${listener.address().port}`);
+    console.log(`🌍 Network: http://127.0.0.1:${listener.address().port}`);
 });

@@ -7,7 +7,7 @@ import Header from "./components/Header";
 import Footer from "./components/Footer";
 import { ThemeProvider } from "./context/ThemeContext";
 import ThemeScript from "./components/ThemeScript";
-import { ClerkProvider } from '@clerk/nextjs'
+// Đã xóa import ClerkProvider
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,8 +22,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-          <html lang="vi" suppressHydrationWarning={true}>
+    // Đã xóa thẻ <ClerkProvider> bao bọc bên ngoài
+    <html lang="vi" suppressHydrationWarning={true}>
       <head>
         {/* 2. ĐẶT SCRIPT VÀO ĐÂY (bên trong head) */}
         <ThemeScript />
@@ -36,6 +36,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-    </ClerkProvider>
   );
 }

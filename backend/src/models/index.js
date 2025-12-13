@@ -1,6 +1,7 @@
 import sequelize from '../config/database.js';
 
-// Import Entities
+// Import Entities (Đảm bảo tên file trong thư mục models khớp với tên import ở đây)
+// Ví dụ: file phải là User.js (hoặc user.js tùy bạn đặt), nếu lỗi "Module not found" hãy check lại tên file.
 import User from './User.js';
 import Story from './Story.js';
 import Chapter from './Chapter.js';
@@ -49,6 +50,9 @@ Story.belongsToMany(User, { through: Favorite, foreignKey: 'story_id', as: 'foll
 Favorite.belongsTo(Story, { foreignKey: 'story_id', as: 'story' });
 Story.hasMany(Favorite, { foreignKey: 'story_id' });
 
+Favorite.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(Favorite, { foreignKey: 'user_id' });
+
 // ==========================================================
 // 6. User & Story -> ReadingHistory (Lịch sử đọc)
 // ==========================================================
@@ -61,6 +65,9 @@ Story.belongsToMany(User, { through: ReadingHistory, foreignKey: 'story_id', as:
 ReadingHistory.belongsTo(Story, { foreignKey: 'story_id', as: 'story' });
 Story.hasMany(ReadingHistory, { foreignKey: 'story_id' });
 
+ReadingHistory.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(ReadingHistory, { foreignKey: 'user_id' });
+
 // Liên kết với chương đang đọc dở
 ReadingHistory.belongsTo(Chapter, { foreignKey: 'last_chapter_id', as: 'last_read_chapter' });
 
@@ -69,6 +76,9 @@ ReadingHistory.belongsTo(Chapter, { foreignKey: 'last_chapter_id', as: 'last_rea
 // ==========================================================
 User.belongsToMany(Story, { through: Rating, foreignKey: 'user_id', as: 'rated_stories' });
 Story.belongsToMany(User, { through: Rating, foreignKey: 'story_id', as: 'user_ratings' });
+
+Rating.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+Rating.belongsTo(Story, { foreignKey: 'story_id', as: 'story' });
 
 // ==========================================================
 // 8. User & Chapter -> UnlockedChapters (Mua chương)
@@ -98,8 +108,8 @@ const syncDatabase = async () => {
     try {
         await sequelize.authenticate();
         console.log('✅ Kết nối MySQL thành công!');
-        await sequelize.sync({ alter: true });
-        console.log('✅ DATABASE ĐÃ ĐỒNG BỘ 100% VỚI TÀI LIỆU!');
+        // await sequelize.sync({ alter: true }); // Bỏ comment dòng này nếu muốn tự động cập nhật cấu trúc bảng
+        console.log('✅ DATABASE ĐÃ SẴN SÀNG!');
     } catch (error) {
         console.error('❌ Lỗi kết nối CSDL:', error);
     }

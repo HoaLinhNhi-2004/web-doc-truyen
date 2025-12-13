@@ -1,10 +1,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import FollowButton from '@/app/components/FollowButton';
-import CommentSection from '@/app/components/CommentSection'; // ✅ Import Component Bình Luận
+import CommentSection from '@/app/components/CommentSection'; 
 import { User, BookOpen, Clock, List, FileText, Search, ArrowUpDown, Eye, Book } from 'lucide-react';
 
-// 1️⃣ Interface dữ liệu
+// 1️⃣ Interface dữ liệu (Khớp với Backend trả về)
 interface Chapter {
   id: string;
   ten_chuong: string;
@@ -25,19 +25,71 @@ interface StoryDetail {
   danh_sach_chuong: Chapter[];
 }
 
-// 2️⃣ Hàm lấy dữ liệu
-async function getStoryDetails(slug: string) {
-  // Lưu ý: Đảm bảo JSON Server đang chạy
-  const res = await fetch(`http://localhost:3000/data/truyen/${slug}.json`, {
-    cache: 'no-cache', 
-  });
+// 2️⃣ Hàm lấy dữ liệu và Map từ Backend
+async function getStoryDetails(slug: string): Promise<StoryDetail | null> {
+  // 👇 GỌI API TRỰC TIẾP (127.0.0.1:5000) ĐỂ TRÁNH LỖI MẠNG TRÊN WINDOWS
+  const apiUrl = `http://127.0.0.1:5000/api/stories/${slug}`;
+  console.log("🔍 [Frontend] Đang tải chi tiết truyện:", apiUrl);
 
-  if (!res.ok) {
-    throw new Error('Không tìm thấy truyện (Hãy kiểm tra lại URL hoặc JSON Server)');
+  try {
+    const res = await fetch(apiUrl, {
+      cache: 'no-store', // Luôn lấy dữ liệu mới nhất
+    });
+
+    if (!res.ok) {
+      if (res.status === 404) return null; // Không tìm thấy
+      throw new Error(`Lỗi API: ${res.status}`);
+    }
+
+    const jsonData = await res.json();
+    const data = jsonData.data; // Backend trả về { status: 'success', data: { ... } }
+
+    if (!data) return null;
+
+    // 🔥 FIX LỖI ẢNH "Failed to parse src": 
+    // Kiểm tra nếu ảnh là đường dẫn tương đối (uploads/...) thì nối thêm domain Backend vào
+    let coverImage = data.cover_image;
+    
+    // Trường hợp 1: Ảnh tương đối không có dấu / ở đầu (vd: uploads/abc.jpg)
+    if (coverImage && !coverImage.startsWith('http') && !coverImage.startsWith('/')) {
+        coverImage = `http://127.0.0.1:5000/${coverImage}`;
+    } 
+    // Trường hợp 2: Ảnh tương đối có dấu / ở đầu (vd: /uploads/abc.jpg)
+    else if (coverImage && coverImage.startsWith('/')) {
+        coverImage = `http://127.0.0.1:5000${coverImage}`;
+    }
+    // Trường hợp 3: Không có ảnh -> Dùng ảnh placeholder mặc định
+    else if (!coverImage) {
+        coverImage = '/placeholder.jpg';
+    }
+
+    // 🔥 MAP DỮ LIỆU: Chuyển từ Backend (Anh) sang Frontend (Việt)
+    return {
+      id: String(data.id),
+      slug: data.slug,
+      ten_truyen: data.title,       // title -> ten_truyen
+      anh_bia: coverImage,          // ✅ Đã xử lý thành link tuyệt đối ở trên
+      tac_gia: data.author_name || 'Đang cập nhật', 
+      tinh_trang: data.status === 'ongoing' ? 'Đang tiến hành' : 'Đã hoàn thành',
+      
+      // Xử lý mảng thể loại: Lấy ra tên thể loại từ mảng object
+      the_loai: data.categories ? data.categories.map((cat: any) => cat.name) : [],
+      
+      mo_ta: data.description || 'Chưa có mô tả cho truyện này.',
+      
+      // Xử lý danh sách chương
+      danh_sach_chuong: data.chapters ? data.chapters.map((chap: any) => ({
+        id: String(chap.id),
+        ten_chuong: chap.title || `Chương ${chap.chapter_num}`,
+        ngay_dang: new Date(chap.created_at).toLocaleDateString('vi-VN'),
+        luot_xem: 0, // Backend hiện tại chưa trả về view chương, để tạm 0
+      })) : []
+    };
+
+  } catch (error) {
+    console.error("❌ Lỗi fetch truyện:", error);
+    return null;
   }
-
-  const data: StoryDetail = await res.json();
-  return data;
 }
 
 // 3️⃣ Component Chính
@@ -49,7 +101,22 @@ export default async function StoryDetailPage({
   const { slug } = await params;
   const story = await getStoryDetails(slug);
 
+  // Xử lý khi không có dữ liệu (404)
+  if (!story) {
+    return (
+      <div className="min-h-screen pt-32 text-center container mx-auto px-4">
+        <h1 className="text-4xl font-bold text-gray-400 mb-4">404 - Không tìm thấy truyện</h1>
+        <p className="mb-8">Đường dẫn không tồn tại hoặc truyện đã bị xóa.</p>
+        <Link href="/" className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          Quay về trang chủ
+        </Link>
+      </div>
+    );
+  }
+
+  // Chuẩn bị dữ liệu cho nút Theo Dõi
   const storyDataForButton = {
+    id: story.id,
     slug: story.slug,
     ten_truyen: story.ten_truyen,
     anh_bia: story.anh_bia
@@ -57,10 +124,10 @@ export default async function StoryDetailPage({
 
   // Mock data truyện liên quan (Sidebar)
   const relatedStories = [
-    { id: 1, title: 'Failure Frame: Kẻ Vô Dụng Trở Thành Thần', views: '2.13K', img: '[https://placehold.co/100x150/1e293b/FFF?text=Failure](https://placehold.co/100x150/1e293b/FFF?text=Failure)', chap: 'Chapter #27' },
-    { id: 2, title: 'One Piece: Đảo Hải Tặc', views: '66.11K', img: '[https://placehold.co/100x150/1e293b/FFF?text=OnePiece](https://placehold.co/100x150/1e293b/FFF?text=OnePiece)', chap: 'Chapter 1166' },
-    { id: 3, title: 'Boruto: Two Blue Vortex', views: '10.21K', img: '[https://placehold.co/100x150/1e293b/FFF?text=Boruto](https://placehold.co/100x150/1e293b/FFF?text=Boruto)', chap: 'Chapter #028' },
-    { id: 4, title: 'Chainsaw Man', views: '45.2K', img: '[https://placehold.co/100x150/1e293b/FFF?text=CSM](https://placehold.co/100x150/1e293b/FFF?text=CSM)', chap: 'Chapter 155' },
+    { id: 1, title: 'Solo Leveling', views: '2.13K', img: 'https://upload.wikimedia.org/wikipedia/en/9/95/Solo_Leveling_Webtoon_cover.png', chap: 'Chapter #179' },
+    { id: 2, title: 'One Piece', views: '66.11K', img: 'https://upload.wikimedia.org/wikipedia/en/9/90/One_Piece%2C_Volume_61_Cover_%28Japanese%29.jpg', chap: 'Chapter 1111' },
+    { id: 3, title: 'Naruto', views: '10.21K', img: 'https://upload.wikimedia.org/wikipedia/en/9/94/NarutoCoverTankobon1.jpg', chap: 'End' },
+    { id: 4, title: 'Bleach', views: '45.2K', img: 'https://upload.wikimedia.org/wikipedia/en/7/72/Bleach_Vol._1.jpg', chap: 'End' },
   ];
 
   return (
@@ -72,6 +139,7 @@ export default async function StoryDetailPage({
           {/* Cột trái: Ảnh bìa */}
           <div className="md:col-span-4 lg:col-span-3 flex flex-col items-center">
             <div className="relative w-full aspect-2/3 rounded-xl overflow-hidden shadow-2xl border border-border group">
+              {/* Ảnh bìa chính */}
               <Image
                 src={story.anh_bia}
                 alt={`Bìa truyện ${story.ten_truyen}`}
@@ -108,8 +176,8 @@ export default async function StoryDetailPage({
                 <FileText size={18} className="text-orange-500" />
                 <span>Thể loại:</span>
                 <div className="flex flex-wrap gap-2 ml-1">
-                  {story.the_loai.map((genre) => (
-                    <span key={genre} className="px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-primary/20 cursor-pointer transition">
+                  {story.the_loai.map((genre, index) => (
+                    <span key={index} className="px-2 py-0.5 bg-secondary text-secondary-foreground rounded text-xs font-medium hover:bg-primary/20 cursor-pointer transition">
                       {genre}
                     </span>
                   ))}
@@ -121,16 +189,26 @@ export default async function StoryDetailPage({
               <h3 className="text-lg font-bold flex items-center gap-2 border-l-4 border-red-500 pl-3 text-foreground">
                 <BookOpen size={20} /> Nội dung
               </h3>
-              <div className="text-muted-foreground leading-7 text-justify bg-card p-4 rounded-lg border border-border shadow-sm text-sm md:text-base">
+              <div className="text-muted-foreground leading-7 text-justify bg-card p-4 rounded-lg border border-border shadow-sm text-sm md:text-base max-h-60 overflow-y-auto">
                  {story.mo_ta}
               </div>
             </div>
 
             <div className="hidden md:flex gap-4">
-              <button className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg hover:shadow-red-600/30 transition flex items-center gap-2">
-                <BookOpen size={18} />
-                Đọc từ đầu
-              </button>
+              {/* Nút Đọc từ đầu */}
+              {story.danh_sach_chuong.length > 0 ? (
+                // Lấy chương đầu tiên (thường là phần tử cuối cùng nếu danh sách trả về Mới nhất -> Cũ nhất)
+                <Link 
+                  href={`/truyen/${slug}/${story.danh_sach_chuong[story.danh_sach_chuong.length - 1].id}`}
+                  className="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg hover:shadow-red-600/30 transition flex items-center gap-2"
+                >
+                  <BookOpen size={18} /> Đọc từ đầu
+                </Link>
+              ) : (
+                <button disabled className="px-6 py-2 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed">
+                  Chưa có chương
+                </button>
+              )}
               <FollowButton story={storyDataForButton} />
             </div>
           </div>
@@ -148,6 +226,9 @@ export default async function StoryDetailPage({
                  <h2 className="text-2xl font-bold flex items-center gap-2 text-blue-600">
                   <List /> Danh sách chương
                 </h2>
+                <span className="text-sm text-muted-foreground">
+                  Tổng số: {story.danh_sach_chuong.length}
+                </span>
               </div>
 
               {/* Toolbar */}
@@ -197,12 +278,18 @@ export default async function StoryDetailPage({
                       </div>
                     </Link>
                   ))}
+                  
+                  {story.danh_sach_chuong.length === 0 && (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Truyện này chưa cập nhật chương nào.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* 2. ✅ PHẦN BÌNH LUẬN MỚI THÊM VÀO */}
-            <CommentSection slug={slug} />
+            {/* 2. ✅ PHẦN BÌNH LUẬN (Truyền ID cho Backend) */}
+            <CommentSection slug={story.id} />
 
           </div>
 
@@ -215,13 +302,14 @@ export default async function StoryDetailPage({
               {relatedStories.map((item) => (
                 <Link href="#" key={item.id} className="flex gap-4 group bg-card p-3 rounded-lg border border-transparent hover:border-border transition hover:bg-accent/40 shadow-sm hover:shadow-md">
                   <div className="relative w-16 h-24 shrink-0 rounded overflow-hidden shadow-sm border border-border/50">
+                    {/* Dùng unoptimized cho ảnh bên ngoài để tránh lỗi hostname */}
                     <Image 
                       src={item.img} 
                       alt={item.title} 
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-300"
                       sizes="64px"
-                      unoptimized // Dùng unoptimized cho ảnh demo từ placehold.co
+                      unoptimized 
                     />
                   </div>
                   <div className="flex flex-col justify-between py-1 flex-1">

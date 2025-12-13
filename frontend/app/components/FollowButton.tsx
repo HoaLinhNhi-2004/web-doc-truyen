@@ -1,81 +1,122 @@
-// app/components/FollowButton.tsx
-
-// BẮT BUỘC: Biến đây thành một Client Component
 "use client";
 
 import { useState, useEffect } from 'react';
+import { Heart, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-// Định nghĩa kiểu dữ liệu cho truyện được lưu
-// Chúng ta sẽ lưu một object nhỏ thay vì chỉ slug
-interface FollowedStory {
-  slug: string;
-  ten_truyen: string;
-  anh_bia: string;
-}
-
-// Component này nhận props là thông tin của truyện nó đang ở
 interface FollowButtonProps {
-  story: FollowedStory;
+  story: {
+    id?: string | number; // Backend cần ID để lưu vào DB
+    slug: string;
+    ten_truyen: string;
+    anh_bia: string;
+  };
 }
 
 export default function FollowButton({ story }: FollowButtonProps) {
-  // 'isFollowed' là state cho biết truyện NÀY đã được theo dõi chưa
   const [isFollowed, setIsFollowed] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  // Hàm helper để lấy danh sách theo dõi từ localStorage
-  const getFollowedList = (): FollowedStory[] => {
-    // Chỉ chạy code này nếu ở trong trình duyệt
-    if (typeof window === "undefined") return [];
-    
-    const list = localStorage.getItem('followedStories');
-    return list ? JSON.parse(list) : [];
-  };
-
-  // 1. Kiểm tra trạng thái theo dõi KHI component được tải
+  // 1. Kiểm tra xem truyện này đã được theo dõi chưa khi component load
   useEffect(() => {
-    const list = getFollowedList();
-    // Kiểm tra xem truyện này (dựa trên slug) đã có trong list chưa
-    const alreadyFollowed = list.some(item => item.slug === story.slug);
-    setIsFollowed(alreadyFollowed);
+    const checkFollowStatus = async () => {
+      // Lấy token từ localStorage
+      const token = localStorage.getItem('accessToken');
+      if (!token || !story.id) return;
+
+      try {
+        // Gọi API lấy danh sách truyện yêu thích của user
+        // (Lưu ý: Dùng 127.0.0.1:5000 để tránh lỗi mạng trên Windows)
+        const res = await fetch(`http://127.0.0.1:5000/api/user/favorites`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+          // Kiểm tra xem truyện hiện tại (story.id) có nằm trong danh sách không
+          // Backend trả về mảng story, ta so sánh id
+          const isFound = data.data.some((item: any) => String(item.id) === String(story.id));
+          setIsFollowed(isFound);
+        }
+      } catch (error) {
+        console.error("Lỗi kiểm tra follow:", error);
+      }
+    };
+
+    checkFollowStatus();
+  }, [story.id]);
+
+  // 2. Xử lý khi bấm nút
+  const handleToggleFollow = async () => {
+    const token = localStorage.getItem('accessToken');
     
-    // Chỉ chạy 1 lần khi component mount
-  }, [story.slug]); // Thêm story.slug vào dependency array
-
-  // 2. Hàm xử lý khi nhấn nút
-  const handleFollow = () => {
-    const list = getFollowedList();
-    let newList: FollowedStory[];
-
-    if (isFollowed) {
-      // ĐÃ THEO DÕI -> BỎ THEO DÕI
-      // Lọc ra, chỉ giữ lại những truyện KHÔNG có slug này
-      newList = list.filter(item => item.slug !== story.slug);
-      
-    } else {
-      // CHƯA THEO DÕI -> THÊM THEO DÕI
-      // Thêm truyện hiện tại vào danh sách
-      newList = [...list, story];
+    // Chưa đăng nhập -> Chuyển hướng
+    if (!token) {
+      if (confirm("Bạn cần đăng nhập để sử dụng tính năng này. Đi đến trang đăng nhập?")) {
+        router.push('/sign-in');
+      }
+      return;
     }
 
-    // 3. Lưu danh sách mới vào localStorage
-    localStorage.setItem('followedStories', JSON.stringify(newList));
-    // 4. Cập nhật state của nút
-    setIsFollowed(!isFollowed);
+    if (!story.id) {
+      alert("Không tìm thấy ID truyện");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Gọi API Toggle (Thêm hoặc Xóa)
+      const res = await fetch(`http://127.0.0.1:5000/api/user/favorites/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ storyId: story.id })
+      });
+
+      const data = await res.json();
+
+      if (data.status === 'success') {
+        // Cập nhật trạng thái nút dựa trên phản hồi của server
+        if (data.action === 'added') {
+          setIsFollowed(true);
+        } else if (data.action === 'removed') {
+          setIsFollowed(false);
+        }
+      } else {
+        alert(data.message || "Có lỗi xảy ra");
+      }
+    } catch (error) {
+      console.error("Lỗi follow:", error);
+      alert("Lỗi kết nối server");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // 5. Render nút dựa trên state
   return (
     <button
-      onClick={handleFollow}
-      className={`mt-4 w-full rounded-md px-4 py-3 text-lg font-semibold transition-colors
-        ${
-          isFollowed
-            ? 'bg-red-600 text-white hover:bg-red-700' // Nút "Bỏ theo dõi"
-            : 'bg-green-600 text-white hover:bg-green-700' // Nút "Theo dõi"
+      onClick={handleToggleFollow}
+      disabled={loading}
+      className={`
+        mt-4 w-full md:w-auto px-6 py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition shadow-lg
+        ${isFollowed 
+          ? 'bg-gray-200 dark:bg-gray-800 text-red-500 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600' // Đã theo dõi (Màu xám/đỏ)
+          : 'bg-green-600 hover:bg-green-700 text-white border border-green-600' // Chưa theo dõi (Màu xanh)
         }
       `}
     >
-      {isFollowed ? 'Bỏ theo dõi' : 'Theo dõi'}
+      {loading ? (
+        <Loader2 size={24} className="animate-spin" />
+      ) : (
+        <Heart size={24} className={isFollowed ? "fill-current" : ""} />
+      )}
+      {isFollowed ? 'Đã Theo Dõi' : 'Theo Dõi'}
     </button>
   );
 }

@@ -1,118 +1,152 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Trash2 } from 'lucide-react'; 
-import StoryCard from '../components/StoryCard'; // Đảm bảo đường dẫn import đúng
+import { Trash2, HeartOff, Loader2 } from 'lucide-react';
+import StoryCard from '../components/StoryCard';
 
-// Định nghĩa kiểu dữ liệu cho item trong localStorage
-interface FollowedStory {
+// Định nghĩa kiểu dữ liệu truyện trả về từ Backend
+interface FavoriteStory {
+  id: number;
+  title: string;
   slug: string;
-  ten_truyen: string;
-  anh_bia: string;
+  cover_image: string;
 }
 
 export default function FollowingPage() {
-  // Lấy trạng thái đăng nhập từ Clerk
-  const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
-  
-  // State lưu danh sách truyện và trạng thái loading dữ liệu
-  const [followedList, setFollowedList] = useState<FollowedStory[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [stories, setStories] = useState<FavoriteStory[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // -------------------------------------------------------
-  // 1. FIX QUAN TRỌNG: Kiểm tra Auth an toàn
-  // Chỉ redirect khi Clerk đã tải xong (isLoaded = true)
-  // Ngăn chặn việc redirect nhầm khi mạng chậm hoặc đang loading
-  // -------------------------------------------------------
+  // 1. Kiểm tra Auth và Load dữ liệu từ Backend
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.push('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
+    const loadFavorites = async () => {
+      // Lấy token đăng nhập
+      const token = localStorage.getItem('accessToken');
 
-  // -------------------------------------------------------
-  // 2. Đọc dữ liệu từ localStorage khi component mount
-  // (Chỉ chạy ở Client để tránh lỗi Hydration)
-  // -------------------------------------------------------
-  useEffect(() => {
+      // Nếu chưa đăng nhập -> Chuyển về trang Sign In
+      if (!token) {
+        router.push('/sign-in');
+        return;
+      }
+
+      try {
+        // Gọi API lấy danh sách tủ truyện (127.0.0.1 để tránh lỗi Windows)
+        const res = await fetch(`http://127.0.0.1:5000/api/user/favorites`, {
+          headers: { 
+            'Authorization': `Bearer ${token}` // Gửi token để xác thực
+          }
+        });
+        
+        // Nếu token hết hạn (401/403) -> Đá ra trang login
+        if (res.status === 401 || res.status === 403) {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('user');
+            router.push('/sign-in');
+            return;
+        }
+
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          setStories(data.data); // data.data là mảng các truyện
+        }
+      } catch (error) {
+        console.error("Lỗi tải tủ truyện:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFavorites();
+  }, [router]);
+
+  // 2. Hàm bỏ theo dõi (Gọi API xóa khỏi DB)
+  const handleRemove = async (storyId: number) => {
+    if (!confirm("Bạn muốn bỏ theo dõi truyện này?")) return;
+
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+
     try {
-      const listString = localStorage.getItem('followedStories');
-      const list = listString ? JSON.parse(listString) : [];
-      setFollowedList(list);
-    } catch (error) {
-      console.error("Lỗi đọc localStorage:", error);
-      setFollowedList([]);
-    } finally {
-      setIsLoadingData(false);
-    }
-  }, []);
+      const res = await fetch(`http://127.0.0.1:5000/api/user/favorites/toggle`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ storyId })
+      });
 
-  // -------------------------------------------------------
-  // 3. Hàm xóa truyện khỏi danh sách theo dõi
-  // -------------------------------------------------------
-  const handleRemove = (slug: string) => {
-    const newList = followedList.filter(item => item.slug !== slug);
-    setFollowedList(newList);
-    localStorage.setItem('followedStories', JSON.stringify(newList));
+      const data = await res.json();
+      
+      if (data.status === 'success' && data.action === 'removed') {
+        // Cập nhật lại UI bằng cách lọc bỏ truyện vừa xóa
+        setStories(prev => prev.filter(s => s.id !== storyId));
+      } else {
+        alert(data.message || "Lỗi khi xóa");
+      }
+    } catch (error) {
+      console.error("Lỗi kết nối:", error);
+      alert("Lỗi kết nối server");
+    }
   };
 
-  // ==================== PHẦN GIAO DIỆN (RENDERING) ====================
+  // Helper xử lý ảnh (Thêm domain nếu thiếu)
+  const getImageUrl = (url: string) => {
+      if (!url) return '/placeholder.jpg';
+      if (url.startsWith('http')) return url;
+      const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+      return `http://127.0.0.1:5000${cleanUrl}`;
+  };
 
-  // Trường hợp 1: Đang tải Auth hoặc đang đọc localStorage -> Hiện Skeleton Loading
-  if (!isLoaded || isLoadingData) {
+  // --- GIAO DIỆN ---
+
+  if (loading) {
     return (
-      <main className="container mx-auto p-4 pt-24 min-h-screen">
-        <h1 className="mb-6 text-3xl font-bold text-foreground flex items-center gap-2">
-          📚 Truyện đang theo dõi
-        </h1>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
-          {[...Array(4)].map((_, i) => (
-             <div key={i} className="h-64 bg-gray-200 dark:bg-gray-800 rounded-lg animate-pulse"></div>
-          ))}
-        </div>
-      </main>
+      <div className="min-h-screen pt-24 flex flex-col justify-center items-center bg-background">
+        <Loader2 className="animate-spin text-blue-500 mb-2" size={40} />
+        <p className="text-muted-foreground">Đang tải tủ truyện...</p>
+      </div>
     );
   }
 
-  // Trường hợp 2: Đã tải xong nhưng chưa đăng nhập
-  // Return null để màn hình không nháy nội dung trước khi chuyển trang
-  if (!isSignedIn) return null;
-
-  // Trường hợp 3: Đã đăng nhập và có dữ liệu -> Hiển thị nội dung
   return (
-    <main className="container mx-auto p-4 pt-24 min-h-screen">
-      <h1 className="mb-8 text-3xl font-bold text-red-500 flex items-center gap-2 border-b pb-4 border-gray-200 dark:border-gray-800">
-        <span className="text-4xl">❤️</span> Tủ Truyện Của Bạn
-      </h1>
+    <main className="container mx-auto p-4 pt-24 min-h-screen bg-background">
+      <div className="flex items-center gap-3 mb-8 border-b border-border pb-4">
+        <h1 className="text-3xl font-bold text-red-500 flex items-center gap-2">
+          <span className="text-4xl">❤️</span> Tủ Truyện Của Bạn
+        </h1>
+        <span className="bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-full text-sm font-bold text-foreground">
+          {stories.length}
+        </span>
+      </div>
 
-      {followedList.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-gray-50 dark:bg-gray-900 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+      {stories.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-muted/30 rounded-xl border border-dashed border-border text-center">
+          <HeartOff size={48} className="text-muted-foreground mb-4 opacity-50" />
           <p className="text-muted-foreground text-lg mb-4">Bạn chưa theo dõi truyện nào.</p>
-          <Link href="/" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium transition shadow-lg shadow-blue-500/30">
+          <Link href="/" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-medium transition shadow-lg">
             Khám phá truyện mới ngay
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-6 md:grid-cols-4 lg:grid-cols-6">
-          {followedList.map((story) => (
-            <div key={story.slug} className="relative group">
-              {/* Tái sử dụng StoryCard */}
-              <StoryCard 
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+          {stories.map((story) => (
+            <div key={story.id} className="relative group">
+              <StoryCard
                 slug={story.slug}
-                ten_truyen={story.ten_truyen}
-                anh_bia={story.anh_bia}
-                chuong_moi_nhat="" 
+                ten_truyen={story.title} // Backend trả về title -> Map sang ten_truyen
+                anh_bia={getImageUrl(story.cover_image)} // Xử lý link ảnh
+                chuong_moi_nhat="" // API favorites hiện tại chưa trả về chap mới, để trống
               />
               
-              {/* Nút xóa nhanh (Chỉ hiện khi di chuột vào) */}
+              {/* Nút Xóa nhanh (Hiện khi hover) */}
               <button 
                 onClick={(e) => {
                   e.preventDefault();
-                  handleRemove(story.slug);
+                  handleRemove(story.id);
                 }}
                 className="absolute top-2 right-2 p-2 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-700 z-10"
                 title="Bỏ theo dõi"

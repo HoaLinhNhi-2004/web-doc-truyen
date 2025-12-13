@@ -1,100 +1,87 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Filter, ChevronRight, Check, Search } from 'lucide-react';
-import StoryCard from '../components/StoryCard'; // Đảm bảo đường dẫn import đúng
+import { Filter, ChevronRight, Check, Search, Loader2 } from 'lucide-react';
+import StoryCard from '../components/StoryCard';
 
-// 1. Danh sách Thể loại (Mock Data)
+// 1. Danh sách Thể loại (Tạm thời dùng danh sách tĩnh, ID khớp với slug trong DB)
 const GENRES = [
   { id: 'all', name: 'Tất cả' },
   { id: 'action', name: 'Action' },
   { id: 'adventure', name: 'Adventure' },
   { id: 'chuyen-sinh', name: 'Chuyển Sinh' },
   { id: 'comedy', name: 'Comedy' },
-  { id: 'co-dai', name: 'Cổ Đại' },
   { id: 'drama', name: 'Drama' },
   { id: 'fantasy', name: 'Fantasy' },
   { id: 'harem', name: 'Harem' },
   { id: 'horror', name: 'Horror' },
   { id: 'manhua', name: 'Manhua' },
   { id: 'manhwa', name: 'Manhwa' },
-  { id: 'mecha', name: 'Mecha' },
-  { id: 'mystery', name: 'Mystery' },
   { id: 'ngon-tinh', name: 'Ngôn Tình' },
   { id: 'romance', name: 'Romance' },
   { id: 'school-life', name: 'School Life' },
-  { id: 'shoujo', name: 'Shoujo' },
   { id: 'shounen', name: 'Shounen' },
-  { id: 'trinh-tham', name: 'Trinh Thám' },
-  { id: 'xuyen-khong', name: 'Xuyên Không' },
-];
-
-// 2. Danh sách Truyện giả lập
-const MOCK_STORIES = [
-  { 
-    id: '1', slug: 'tham-tu-conan', ten_truyen: 'Thám Tử Lừng Danh Conan', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/4/4e/Detective_Conan_Vol_1.jpg', 
-    chuong_moi_nhat: 'Chap 1000', 
-    genres: ['mystery', 'shounen', 'comedy', 'trinh-tham'] 
-  },
-  { 
-    id: '2', slug: 'one-piece', ten_truyen: 'One Piece', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/9/90/One_Piece%2C_Volume_61_Cover_%28Japanese%29.jpg', 
-    chuong_moi_nhat: 'Chap 1100', 
-    genres: ['action', 'adventure', 'shounen', 'fantasy'] 
-  },
-  { 
-    id: '3', slug: 'naruto', ten_truyen: 'Naruto', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/9/94/NarutoCoverTankobon1.jpg', 
-    chuong_moi_nhat: 'End', 
-    genres: ['action', 'adventure', 'shounen'] 
-  },
-  { 
-    id: '4', slug: 'solo-leveling', ten_truyen: 'Solo Leveling', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/9/95/Solo_Leveling_Webtoon_cover.png', 
-    chuong_moi_nhat: 'End', 
-    genres: ['action', 'manhwa', 'fantasy'] 
-  },
-  { 
-    id: '5', slug: 'vo-luyen-dinh-phong', ten_truyen: 'Võ Luyện Đỉnh Phong', 
-    anh_bia: 'https://st.nettruyenco.com/data/comics/32/vo-luyen-dinh-phong.jpg', 
-    chuong_moi_nhat: 'Chap 3600', 
-    genres: ['action', 'manhua', 'fantasy', 'chuyen-sinh'] 
-  },
-  { 
-    id: '6', slug: 'thanh-guom-diet-quy', ten_truyen: 'Thanh Gươm Diệt Quỷ', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/0/09/Demon_Slayer_-_Kimetsu_no_Yaiba%2C_volume_1.jpg', 
-    chuong_moi_nhat: 'End', 
-    genres: ['action', 'adventure', 'horror'] 
-  },
-  { 
-    id: '7', slug: 'jujutsu-kaisen', ten_truyen: 'Chú Thuật Hồi Chiến', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/4/44/Jujutsu_Kaisen_cover.jpg', 
-    chuong_moi_nhat: 'Chap 240', 
-    genres: ['action', 'horror', 'shounen'] 
-  },
-  { 
-    id: '8', slug: 'chuyen-sinh-thanh-slime', ten_truyen: 'Chuyển Sinh Thành Slime', 
-    anh_bia: 'https://upload.wikimedia.org/wikipedia/en/3/30/That_Time_I_Got_Reincarnated_as_a_Slime_manga_volume_1.jpg', 
-    chuong_moi_nhat: 'Chap 110', 
-    genres: ['fantasy', 'chuyen-sinh', 'comedy'] 
-  },
 ];
 
 export default function CategoryPage() {
   const [activeGenre, setActiveGenre] = useState('all');
+  const [stories, setStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Lọc danh sách truyện
-  const filteredStories = activeGenre === 'all' 
-    ? MOCK_STORIES 
-    : MOCK_STORIES.filter(story => story.genres.includes(activeGenre));
+  // Helper xử lý link ảnh (Thêm domain Backend nếu thiếu)
+  const getImageUrl = (url: string) => {
+      if (!url) return '/placeholder.jpg';
+      if (url.startsWith('http')) return url;
+      const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+      return `http://127.0.0.1:5000${cleanUrl}`;
+  };
+
+  // 2. Hàm gọi API lấy truyện (Chạy lại khi activeGenre thay đổi)
+  useEffect(() => {
+    const fetchStories = async () => {
+      setLoading(true);
+      try {
+        // Xây dựng URL API (127.0.0.1:5000 để tránh lỗi mạng Windows)
+        let url = `http://127.0.0.1:5000/api/stories?limit=18`;
+        
+        // Nếu chọn thể loại cụ thể, thêm tham số category vào URL
+        if (activeGenre !== 'all') {
+            url += `&category=${activeGenre}`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          // Map dữ liệu từ Backend sang Frontend
+          const mappedStories = data.data.map((item: any) => ({
+            id: String(item.id),
+            slug: item.slug,
+            ten_truyen: item.title, // Backend: title -> Frontend: ten_truyen
+            anh_bia: getImageUrl(item.cover_image),
+            chuong_moi_nhat: item.chapters && item.chapters.length > 0 
+                ? item.chapters[0].title 
+                : 'Đang cập nhật'
+          }));
+          setStories(mappedStories);
+        }
+      } catch (error) {
+        console.error("Lỗi tải truyện:", error);
+        setStories([]); // Reset về rỗng nếu lỗi
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStories();
+  }, [activeGenre]); 
 
   return (
     <div className="min-h-screen bg-background pt-24 pb-12">
       <div className="container mx-auto px-4">
         
-        {/* Breadcrumb - Đã cập nhật href */}
+        {/* Breadcrumb */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <Link href="/" className="hover:text-blue-500 transition-colors">Trang chủ</Link>
@@ -107,7 +94,7 @@ export default function CategoryPage() {
           </h1>
         </div>
 
-        {/* --- KHU VỰC BỘ LỌC --- */}
+        {/* --- KHU VỰC BỘ LỌC (FILTER) --- */}
         <div className="bg-card border border-border rounded-xl p-6 mb-8 shadow-sm">
           <div className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
             Chọn thể loại:
@@ -133,7 +120,7 @@ export default function CategoryPage() {
             ))}
           </div>
           
-          {/* Kết quả tìm kiếm */}
+          {/* Dòng trạng thái kết quả */}
           <div className="mt-6 pt-4 border-t border-border text-sm text-muted-foreground flex justify-between items-center">
             <div className="flex items-center gap-2">
               <span>Đang xem:</span>
@@ -141,14 +128,21 @@ export default function CategoryPage() {
                 {GENRES.find(g => g.id === activeGenre)?.name}
               </span>
             </div>
-            <span>
-              Tìm thấy <strong className="text-foreground">{filteredStories.length}</strong> kết quả
-            </span>
+            {!loading && (
+                <span>
+                Tìm thấy <strong className="text-foreground">{stories.length}</strong> kết quả
+                </span>
+            )}
           </div>
         </div>
 
         {/* --- LƯỚI TRUYỆN --- */}
-        {filteredStories.length === 0 ? (
+        {loading ? (
+            <div className="flex justify-center py-20">
+                <Loader2 className="animate-spin text-blue-500" size={40} />
+            </div>
+        ) : stories.length === 0 ? (
+          // Giao diện khi không tìm thấy truyện nào
           <div className="flex flex-col items-center justify-center py-20 bg-muted/30 rounded-xl border border-dashed border-border">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
               <Search className="text-muted-foreground" size={32} />
@@ -162,8 +156,9 @@ export default function CategoryPage() {
             </button>
           </div>
         ) : (
+          // Grid hiển thị truyện
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-4 gap-y-8">
-            {filteredStories.map((story) => (
+            {stories.map((story) => (
               <div key={story.id} className="animate-in fade-in zoom-in duration-300">
                 <StoryCard 
                   slug={story.slug}
@@ -175,6 +170,7 @@ export default function CategoryPage() {
             ))}
           </div>
         )}
+
       </div>
     </div>
   );
