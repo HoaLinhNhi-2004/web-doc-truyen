@@ -7,7 +7,8 @@ const Chapter = sequelize.define('Chapter', {
     chapter_num: { type: DataTypes.FLOAT, allowNull: false },
     title: { type: DataTypes.STRING(255) },
     price: { type: DataTypes.INTEGER, defaultValue: 0 }, // 0 = Free
-    published_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+    published_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    views: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, { tableName: 'chapters' });
 
 export default Chapter;

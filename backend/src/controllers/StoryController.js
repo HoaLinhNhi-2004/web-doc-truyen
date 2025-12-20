@@ -126,8 +126,11 @@ const StoryController = {
     // API 4: Tăng lượt xem
     increaseView: async (req, res) => {
         try {
-            const { id } = req.params;
-            await StoryService.incrementView(id);
+            const { id } = req.params; // ID của truyện (Story ID)
+            const { chapterId } = req.body; // 👇 Lấy thêm chapterId từ body (nếu có)
+
+            // Gọi service với cả 2 tham số
+            await StoryService.incrementView(id, chapterId);
             
             return res.status(200).json({ status: 'success', message: 'Đã tăng view' });
         } catch (error) {

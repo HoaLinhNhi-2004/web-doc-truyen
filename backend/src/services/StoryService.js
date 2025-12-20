@@ -1,5 +1,6 @@
 import { Op } from 'sequelize';
-import { Story, Chapter, Category, ChapterContent, StoryCategory } from '../models/index.js';
+// 👇 Thêm 'sequelize' vào import để dùng transaction
+import { Story, Chapter, Category, ChapterContent, StoryCategory, sequelize } from '../models/index.js';
 
 const StoryService = {
     // 1. Lấy danh sách truyện (Trang chủ & Lọc & Tìm kiếm)
@@ -51,7 +52,8 @@ const StoryService = {
                 limit: limit,
                 offset: offset,
                 order: orderClause,
-                attributes: ['id', 'title', 'slug', 'cover_image', 'status', 'type', 'total_views', 'updated_at'],
+                // 👇 Đã thêm 'average_rating' vào đây
+                attributes: ['id', 'title', 'slug', 'cover_image', 'status', 'type', 'total_views', 'updated_at', 'average_rating'],
                 include: includeClause,
                 distinct: true // Bắt buộc có để đếm đúng khi include nhiều bảng
             });
@@ -82,7 +84,8 @@ const StoryService = {
                     {
                         model: Chapter,
                         as: 'chapters',
-                        attributes: ['id', 'chapter_num', 'title', 'created_at', 'price'],
+                        // 👇 Thêm 'views' vào đây để hiển thị ra ngoài Frontend
+                        attributes: ['id', 'chapter_num', 'title', 'created_at', 'price', 'views'],
                         // Sắp xếp danh sách chương: Mới nhất lên đầu
                     }
                 ],
@@ -153,20 +156,36 @@ const StoryService = {
             throw error;
         }
     },
-    incrementView: async (storyId) => {
+
+    // 👇 CẬP NHẬT HÀM NÀY
+    incrementView: async (storyId, chapterId = null) => {
+        const t = await sequelize.transaction();
         try {
-            // Cách 1: Tăng trực tiếp (Dễ làm, phù hợp demo)
+            // 1. Luôn tăng view tổng của Truyện
             await Story.increment('total_views', { 
                 by: 1, 
-                where: { id: storyId } 
+                where: { id: storyId },
+                transaction: t
             });
+
+            // 2. Nếu có chapterId gửi lên -> Tăng view của Chương đó
+            if (chapterId) {
+                await Chapter.increment('views', {
+                    by: 1,
+                    where: { id: chapterId },
+                    transaction: t
+                });
+            }
+
+            await t.commit();
             return true;
         } catch (error) {
-            throw error;
+            await t.rollback();
+            console.error("Lỗi tăng view:", error);
+            // Không throw error để tránh crash API nếu chỉ lỗi tăng view
+            return false;
         }
     }
-
-
     
 };
 

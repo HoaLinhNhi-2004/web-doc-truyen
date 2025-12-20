@@ -1,10 +1,9 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import Link from 'next/link';
-import { MessageSquare, Send, User as UserIcon, Loader2 } from "lucide-react";
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import { Send, MessageSquare, Trash2, User as UserIcon, CornerDownRight, Loader2 } from 'lucide-react';
 
-// Định nghĩa kiểu dữ liệu User (lấy từ localStorage hoặc API)
 interface User {
   id: number;
   username: string;
@@ -12,198 +11,283 @@ interface User {
   role: string;
 }
 
-// Định nghĩa kiểu dữ liệu Comment trả về từ Backend
 interface Comment {
   id: number;
   content: string;
   created_at: string;
-  user: User; // Backend include User model
+  user: User;
+  replies?: Comment[];
 }
 
-export default function CommentSection({ slug }: { slug: string }) { 
-  // Lưu ý: 'slug' ở đây thực tế là ID của truyện được truyền từ trang chi tiết
-  
+const getImageUrl = (url: string) => {
+  if (!url) return '/placeholder.jpg';
+  if (url.startsWith('http')) return url;
+  return `http://127.0.0.1:5000${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+export default function CommentSection({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [commentText, setCommentText] = useState("");
+  const [content, setContent] = useState('');
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // State quản lý việc đang trả lời comment nào (lưu ID comment cha)
+  const [replyingTo, setReplyingTo] = useState<number | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
 
-  // 1. Kiểm tra trạng thái đăng nhập từ LocalStorage
+  // 1. Lấy user hiện tại & Danh sách comment
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Lỗi đọc thông tin user:", error);
-      }
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+        try {
+            setCurrentUser(JSON.parse(userStr));
+        } catch (e) {
+            console.error("Lỗi đọc user", e);
+        }
     }
-  }, []);
 
-  // 2. Hàm lấy danh sách bình luận từ API Backend
+    fetchComments();
+  }, [slug]);
+
   const fetchComments = async () => {
     try {
-      // Gọi trực tiếp 127.0.0.1:5000 để tránh lỗi socket hang up
-      const res = await fetch(`http://127.0.0.1:5000/api/comments/${slug}`, {
-        cache: 'no-store'
-      });
+      const res = await fetch(`http://127.0.0.1:5000/api/comments/${slug}`, { cache: 'no-store' });
       const data = await res.json();
-      
       if (data.status === 'success') {
         setComments(data.data);
       }
     } catch (error) {
-      console.error("Lỗi tải bình luận:", error);
+      console.error(error);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
-  // Tự động lấy bình luận khi component được tải
-  useEffect(() => {
-    if (slug) fetchComments();
-  }, [slug]);
+  // 2. Gửi bình luận (Gốc hoặc Trả lời)
+  const handleSubmit = async (parentId: number | null = null) => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      alert("Vui lòng đăng nhập để bình luận!");
+      return;
+    }
 
-  // 3. Hàm gửi bình luận
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!commentText.trim() || !user) return;
+    const textToSend = parentId ? replyContent : content;
+    if (!textToSend.trim()) return;
 
     setSubmitting(true);
-    const token = localStorage.getItem('accessToken'); // Lấy token để xác thực
-
     try {
-      const res = await fetch(`http://127.0.0.1:5000/api/comments`, {
+      const res = await fetch('http://127.0.0.1:5000/api/comments', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` // Bắt buộc phải có Token vì authMiddleware yêu cầu
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          storyId: slug,
-          content: commentText
+          storyId: slug, // slug ở đây chính là storyId (do cách bạn truyền ở page.tsx)
+          content: textToSend,
+          parentId: parentId
         })
       });
 
       const data = await res.json();
-
-      if (res.ok && data.status === 'success') {
-        // Thêm bình luận mới vào đầu danh sách ngay lập tức
-        setComments([data.data, ...comments]); 
-        setCommentText(""); // Xóa nội dung ô nhập
+      if (data.status === 'success') {
+        // Reset form sau khi gửi thành công
+        if (parentId) {
+            setReplyingTo(null);
+            setReplyContent('');
+        } else {
+            setContent('');
+        }
+        // Load lại danh sách để hiện comment mới
+        fetchComments();
       } else {
-        alert(data.message || "Gửi thất bại. Vui lòng đăng nhập lại.");
+        alert(data.message);
       }
     } catch (error) {
-      console.error("Lỗi gửi bình luận:", error);
-      alert("Lỗi kết nối server");
+      alert("Lỗi kết nối");
     } finally {
       setSubmitting(false);
     }
   };
 
-  return (
-    <div className="mt-8 bg-card border border-border rounded-xl p-6 shadow-sm">
-      {/* Header */}
-      <h3 className="text-xl font-bold mb-6 flex items-center gap-2 uppercase border-b border-border pb-2 text-foreground">
-        <MessageSquare size={20} className="text-blue-500" /> 
-        Bình Luận ({comments.length})
-      </h3>
+  // 3. Xóa bình luận
+  const handleDelete = async (commentId: number) => {
+    if (!confirm("Bạn chắc chắn muốn xóa bình luận này?")) return;
+    
+    const token = localStorage.getItem('accessToken');
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/comments/${commentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        fetchComments(); // Load lại danh sách sau khi xóa
+      } else {
+        alert(data.message || "Không thể xóa");
+      }
+    } catch (error) {
+      alert("Lỗi kết nối");
+    }
+  };
 
-      {/* KHU VỰC NHẬP BÌNH LUẬN */}
-      <div className="mb-8">
-        {user ? (
-          // --- TRƯỜNG HỢP ĐÃ ĐĂNG NHẬP ---
-          <form onSubmit={handleSubmit} className="flex gap-4">
-            <div className="shrink-0">
-                <div className="w-10 h-10 rounded-full bg-blue-500 overflow-hidden flex items-center justify-center text-white font-bold border border-white/20">
-                    {/* Hiển thị Avatar User */}
-                    {user.avatar_url?.startsWith('http') ? (
-                        <img src={user.avatar_url} alt={user.username} className="w-full h-full object-cover" />
-                    ) : (
-                        user.username?.charAt(0).toUpperCase() || 'U'
-                    )}
+  // Component con hiển thị từng comment
+  const CommentItem = ({ item, isReply = false }: { item: Comment, isReply?: boolean }) => {
+    const isOwner = currentUser?.id === item.user.id;
+    const isAdmin = currentUser?.role === 'admin';
+
+    return (
+      <div className={`flex gap-3 ${isReply ? 'mt-3 pl-4 border-l-2 border-zinc-800' : 'mt-6'}`}>
+        <div className="shrink-0">
+          <div className={`${isReply ? 'w-8 h-8' : 'w-10 h-10'} rounded-full overflow-hidden border border-zinc-700 relative`}>
+            {item.user.avatar_url ? (
+               <Image 
+                 src={getImageUrl(item.user.avatar_url)} 
+                 alt={item.user.username} 
+                 fill 
+                 className="object-cover" 
+                 unoptimized
+               />
+            ) : (
+                <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-zinc-500">
+                    <UserIcon size={isReply ? 14 : 18} />
                 </div>
-            </div>
-            <div className="flex-1">
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder={`Viết bình luận của bạn với tên ${user.username}...`}
-                className="w-full p-3 rounded-lg border border-border bg-background focus:ring-2 focus:ring-blue-500 focus:outline-none min-h-20 resize-y text-sm transition"
-              />
-              <div className="flex justify-end mt-2">
-                <button 
-                  type="submit" 
-                  disabled={!commentText.trim() || submitting}
-                  className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium text-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition shadow-md"
-                >
-                  {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-                  Gửi bình luận
-                </button>
-              </div>
-            </div>
-          </form>
-        ) : (
-          // --- TRƯỜNG HỢP CHƯA ĐĂNG NHẬP ---
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 bg-muted/30 p-6 rounded-lg border border-dashed border-border text-center">
-            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <UserIcon className="text-muted-foreground" size={20} />
-            </div>
-            <div className="text-muted-foreground">
-              Bạn cần đăng nhập để tham gia bình luận.
-            </div>
-            <Link href="/sign-in" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-sm font-medium transition shadow-lg shadow-blue-500/20">
-                Đăng nhập ngay
-            </Link>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+        
+        <div className="flex-1">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 relative group">
+            <div className="flex justify-between items-start mb-1">
+                <div className="flex items-center gap-2">
+                    <span className={`font-bold text-sm ${item.user.role === 'admin' ? 'text-red-500' : 'text-zinc-200'}`}>
+                        {item.user.username}
+                    </span>
+                    {item.user.role === 'admin' && (
+                        <span className="bg-red-900/30 text-red-500 text-[10px] px-1.5 py-0.5 rounded border border-red-900/50 uppercase font-bold">Admin</span>
+                    )}
+                    <span className="text-xs text-zinc-500">
+                        {new Date(item.created_at).toLocaleDateString('vi-VN')}
+                    </span>
+                </div>
+                
+                {/* Nút Xóa (Chỉ hiện khi hover VÀ có quyền) */}
+                {(isOwner || isAdmin) && (
+                    <button 
+                        onClick={() => handleDelete(item.id)}
+                        className="text-zinc-600 hover:text-red-500 transition opacity-0 group-hover:opacity-100"
+                        title="Xóa bình luận"
+                    >
+                        <Trash2 size={14} />
+                    </button>
+                )}
+            </div>
+            
+            <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{item.content}</p>
+          </div>
 
-      {/* DANH SÁCH BÌNH LUẬN */}
-      <div className="space-y-6">
-        {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Đang tải bình luận...</div>
-        ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground italic bg-muted/10 rounded-lg">
-                Chưa có bình luận nào. Hãy là người đầu tiên!
-            </div>
-        ) : (
-            comments.map((comment) => (
-            <div key={comment.id} className="flex gap-4 group animate-in fade-in slide-in-from-bottom-2 duration-300">
-                <div className="shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden flex items-center justify-center text-gray-500 dark:text-gray-300 font-bold border border-border">
-                        {comment.user?.avatar_url?.startsWith('http') ? (
-                            <img src={comment.user.avatar_url} alt={comment.user.username} className="w-full h-full object-cover" />
-                        ) : (
-                            comment.user?.username?.charAt(0).toUpperCase() || 'U'
-                        )}
-                    </div>
-                </div>
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className={`font-bold text-sm ${comment.user?.role === 'admin' ? 'text-red-500' : 'text-foreground'}`}>
-                            {comment.user?.username || 'Người dùng ẩn danh'}
-                        </span>
-                        {comment.user?.role === 'admin' && (
-                            <span className="bg-red-100 text-red-600 text-[10px] px-1.5 py-0.5 rounded border border-red-200 font-bold">ADMIN</span>
-                        )}
-                        <span className="text-xs text-muted-foreground">• {new Date(comment.created_at).toLocaleString('vi-VN')}</span>
-                    </div>
-                    <div className="text-sm text-foreground/90 leading-relaxed bg-muted/40 p-3 rounded-r-xl rounded-bl-xl border border-border/50 shadow-sm">
-                        {comment.content}
-                    </div>
-                    
-                    {/* Các nút tương tác nhỏ bên dưới */}
-                    <div className="flex gap-4 mt-1 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button className="text-xs text-muted-foreground hover:text-blue-500 font-medium">Trả lời</button>
-                    </div>
-                </div>
-            </div>
-            ))
-        )}
+          {/* Nút Trả lời - Luôn hiển thị */}
+          {!isReply && (
+              <div className="flex gap-4 mt-1 ml-2">
+                  <button 
+                    onClick={() => setReplyingTo(replyingTo === item.id ? null : item.id)}
+                    className="text-xs font-bold text-zinc-500 hover:text-blue-500 transition flex items-center gap-1"
+                  >
+                      <CornerDownRight size={12} /> Trả lời
+                  </button>
+              </div>
+          )}
+
+          {/* Form Trả lời (Hiện khi bấm nút) */}
+          {replyingTo === item.id && (
+              <div className="mt-3 flex gap-2 animate-in fade-in slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    placeholder={`Trả lời ${item.user.username}...`}
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 outline-none"
+                    value={replyContent}
+                    onChange={(e) => setReplyContent(e.target.value)}
+                    autoFocus
+                  />
+                  <button 
+                    onClick={() => handleSubmit(item.id)}
+                    disabled={submitting}
+                    className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg flex items-center justify-center"
+                  >
+                    {submitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
+              </div>
+          )}
+
+          {/* Hiển thị các câu trả lời con (Nested) */}
+          {item.replies && item.replies.length > 0 && (
+              <div className="mt-2">
+                  {item.replies.map(reply => (
+                      <CommentItem key={reply.id} item={reply} isReply={true} />
+                  ))}
+              </div>
+          )}
+        </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="mt-8 bg-zinc-950 border border-zinc-800 rounded-xl p-6 shadow-xl">
+        <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-zinc-800 pb-4">
+            <MessageSquare className="text-blue-500" /> Bình luận ({comments.length})
+        </h3>
+
+        {/* Form Bình Luận Gốc */}
+        <div className="flex gap-4 mb-8">
+            <div className="w-10 h-10 rounded-full bg-zinc-800 shrink-0 overflow-hidden border border-zinc-700 relative">
+                {currentUser?.avatar_url ? (
+                    <Image 
+                        src={getImageUrl(currentUser.avatar_url)} 
+                        alt="Me" 
+                        fill 
+                        className="object-cover"
+                        unoptimized
+                    />
+                ) : <UserIcon className="w-full h-full p-2 text-zinc-500" />}
+            </div>
+            <div className="flex-1 relative">
+                <textarea 
+                    placeholder={currentUser ? "Viết bình luận của bạn..." : "Đăng nhập để bình luận"}
+                    disabled={!currentUser}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-4 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none resize-none min-h-[100px] shadow-inner transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                />
+                {currentUser && (
+                    <button 
+                        onClick={() => handleSubmit(null)}
+                        disabled={submitting || !content.trim()}
+                        className="absolute bottom-3 right-3 bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                    >
+                        {submitting ? 'Đang gửi...' : <><Send size={16} /> Gửi</>}
+                    </button>
+                )}
+            </div>
+        </div>
+
+        {/* Danh sách bình luận */}
+        <div className="space-y-2">
+            {loading ? (
+                <div className="text-center py-8 text-zinc-500">Đang tải bình luận...</div>
+            ) : comments.length > 0 ? (
+                comments.map(comment => (
+                    <CommentItem key={comment.id} item={comment} />
+                ))
+            ) : (
+                <div className="text-center py-10 text-zinc-500 italic">
+                    Chưa có bình luận nào. Hãy là người đầu tiên!
+                </div>
+            )}
+        </div>
     </div>
   );
 }

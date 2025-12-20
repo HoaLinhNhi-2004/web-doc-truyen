@@ -1,4 +1,5 @@
-import { Favorite, ReadingHistory, Story, Chapter } from '../models/index.js';
+import { Favorite, ReadingHistory, Story, Chapter, User } from '../models/index.js';
+import bcrypt from 'bcryptjs'; // 👈 Import thư viện mã hóa mật khẩu
 
 const UserService = {
     // ==========================================================
@@ -27,7 +28,6 @@ const UserService = {
     // Lấy danh sách tủ truyện
     getFavorites: async (userId) => {
         try {
-            // Nhờ đã fix model index.js, giờ ta query trực tiếp rất dễ
             const favorites = await Favorite.findAll({
                 where: { user_id: userId },
                 order: [['created_at', 'DESC']], // Truyện mới tim lên đầu
@@ -70,7 +70,6 @@ const UserService = {
     // Lấy danh sách lịch sử
     getHistory: async (userId) => {
         try {
-            // Nhờ đã fix model index.js, giờ query 1 lệnh là ra đủ Story + Chapter
             const history = await ReadingHistory.findAll({
                 where: { user_id: userId },
                 order: [['updated_at', 'DESC']], // Truyện mới đọc lên đầu
@@ -89,6 +88,49 @@ const UserService = {
             });
             
             return history;
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    // ==========================================================
+    // 3. QUẢN LÝ TÀI KHOẢN (PROFILE) - MỚI THÊM
+    // ==========================================================
+
+    // Cập nhật thông tin cơ bản (Avatar, Tên)
+    updateProfile: async (userId, { username, avatar_url }) => {
+        try {
+            const updateData = {};
+            // Chỉ cập nhật những trường có dữ liệu gửi lên
+            if (username) updateData.username = username;
+            if (avatar_url) updateData.avatar_url = avatar_url;
+
+            await User.update(updateData, { where: { id: userId } });
+            
+            // Trả về thông tin user mới nhất để Frontend cập nhật lại State
+            return await User.findByPk(userId, { attributes: { exclude: ['password_hash'] } });
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    // Đổi mật khẩu
+    changePassword: async (userId, oldPassword, newPassword) => {
+        try {
+            const user = await User.findByPk(userId);
+            if (!user) throw new Error('User không tồn tại');
+
+            // 1. Kiểm tra mật khẩu cũ
+            const isMatch = await bcrypt.compare(oldPassword, user.password_hash);
+            if (!isMatch) return { status: 'error', message: 'Mật khẩu cũ không đúng' };
+
+            // 2. Mã hóa mật khẩu mới
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(newPassword, salt);
+
+            // 3. Lưu vào DB
+            await User.update({ password_hash: passwordHash }, { where: { id: userId } });
+            return { status: 'success', message: 'Đổi mật khẩu thành công' };
         } catch (error) {
             throw error;
         }

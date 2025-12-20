@@ -1,23 +1,25 @@
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Home, List, AlertCircle } from 'lucide-react';
-import HistorySaver from '@/app/components/HistorySaver'; // ✅ Đã import component lưu lịch sử
+import { ChevronLeft, ChevronRight, Home, AlertCircle } from 'lucide-react';
+import HistorySaver from '@/app/components/HistorySaver'; 
+import ViewTracker from '@/app/components/ViewTracker'; 
+import ChapterMenu from '@/app/components/ChapterMenu'; // 👈 Import Component Menu
 
-// 1️⃣ Interface dữ liệu (Khớp với cấu trúc Backend trả về)
+// 1️⃣ Interface dữ liệu
 interface ChapterNavigation {
   id: number;
   chapter_num: number;
 }
 
 interface ChapterContent {
-  content_images?: string[]; // Mảng link ảnh (cho truyện tranh)
-  content_text?: string;     // Nội dung chữ (cho truyện chữ)
+  content_images?: string[]; 
+  content_text?: string;    
 }
 
 interface ChapterData {
   id: number;
   title: string;
   chapter_num: number;
-  price: number; // 0 = Free, > 0 = VIP
+  price: number; 
   content?: ChapterContent;
   story: {
     id: number;
@@ -28,14 +30,10 @@ interface ChapterData {
   next_chapter?: ChapterNavigation | null;
 }
 
-// 2️⃣ Helper xử lý link ảnh (Thêm domain nếu là ảnh upload)
+// 2️⃣ Helper xử lý link ảnh
 const getImageUrl = (url: string) => {
   if (!url) return '/placeholder.jpg';
-  // Nếu là link tuyệt đối (http...) -> Giữ nguyên
   if (url.startsWith('http')) return url;
-  
-  // Nếu là link tương đối (uploads/...) -> Thêm domain backend
-  // Lưu ý: Backend chạy 127.0.0.1:5000 để tránh lỗi socket hang up trên Windows
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
   return `http://127.0.0.1:5000${cleanUrl}`;
 };
@@ -43,18 +41,13 @@ const getImageUrl = (url: string) => {
 // 3️⃣ Hàm gọi API lấy nội dung chương
 async function getChapterData(chapterId: string): Promise<ChapterData | null> {
   const apiUrl = `http://127.0.0.1:5000/api/chapters/${chapterId}`;
-  console.log("📖 [Frontend] Đang tải chương:", apiUrl);
-
+  
   try {
-    const res = await fetch(apiUrl, { 
-      cache: 'no-store' // Luôn lấy mới nhất để check quyền VIP/Free
-    });
+    const res = await fetch(apiUrl, { cache: 'no-store' });
 
     if (!res.ok) {
-      // Nếu bị chặn (403/402) do chưa mua VIP, backend vẫn trả về data cơ bản (nhưng content null)
       if (res.status === 402 || res.status === 403) {
          const errorData = await res.json();
-         // Vẫn trả về data để hiển thị tiêu đề, nhưng content sẽ bị null
          return errorData.data || null;
       }
       console.error(`❌ Lỗi tải chương: ${res.status}`);
@@ -69,19 +62,31 @@ async function getChapterData(chapterId: string): Promise<ChapterData | null> {
   }
 }
 
+// 👇 Hàm lấy danh sách tất cả chương của truyện (Để truyền vào Menu)
+async function getAllChapters(slug: string) {
+    try {
+        const res = await fetch(`http://127.0.0.1:5000/api/stories/${slug}`, { cache: 'no-store' });
+        const data = await res.json();
+        return data.data?.chapters || [];
+    } catch (error) {
+        return [];
+    }
+}
+
 // 4️⃣ Component Chính
 export default async function ChapterReaderPage({
   params,
 }: {
   params: Promise<{ slug: string; chapterId: string }>;
 }) {
-  // Giải Promise params (Next.js 15)
   const { slug, chapterId } = await params;
 
-  // Gọi API lấy dữ liệu
-  const chapter = await getChapterData(chapterId);
+  // Gọi song song 2 API để tối ưu tốc độ
+  const [chapter, allChapters] = await Promise.all([
+      getChapterData(chapterId),
+      getAllChapters(slug)
+  ]);
 
-  // Xử lý trường hợp không tìm thấy hoặc lỗi
   if (!chapter) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-white p-4">
@@ -93,19 +98,18 @@ export default async function ChapterReaderPage({
     );
   }
 
-  // Kiểm tra xem chương có bị khóa không (Nếu content rỗng mà giá > 0)
   const isLocked = !chapter.content?.content_images && !chapter.content?.content_text && chapter.price > 0;
 
   return (
     <div className="bg-zinc-900 text-gray-200 min-h-screen flex flex-col">
       
       {/* --- THANH ĐIỀU HƯỚNG TRÊN (Sticky) --- */}
-      <div className="sticky top-0 z-50 bg-zinc-800/95 backdrop-blur border-b border-zinc-700 shadow-lg">
+      <div className="sticky top-0 z-[60] bg-zinc-800/95 backdrop-blur border-b border-zinc-700 shadow-lg">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           
-          {/* Breadcrumb: Tên truyện / Tên chương */}
+          {/* Breadcrumb */}
           <div className="flex items-center gap-2 overflow-hidden text-sm md:text-base">
-            <Link href="/" className="p-2 hover:bg-zinc-700 rounded-full transition" title="Trang chủ">
+            <Link href="/" className="p-2 hover:bg-zinc-700 rounded-full transition flex items-center justify-center" title="Trang chủ">
               <Home size={18} />
             </Link>
             <ChevronRight size={16} className="text-zinc-500 shrink-0" />
@@ -125,23 +129,22 @@ export default async function ChapterReaderPage({
           <div className="flex items-center gap-1">
             <Link
               href={chapter.prev_chapter ? `/truyen/${slug}/${chapter.prev_chapter.id}` : '#'}
-              className={`p-2 rounded hover:bg-zinc-700 transition ${!chapter.prev_chapter ? 'opacity-30 pointer-events-none' : ''}`}
+              className={`p-2 rounded hover:bg-zinc-700 transition flex items-center justify-center ${!chapter.prev_chapter ? 'opacity-30 pointer-events-none' : ''}`}
               title="Chương trước"
             >
               <ChevronLeft size={24} />
             </Link>
             
-            <Link 
-              href={`/truyen/${slug}`} 
-              className="p-2 rounded hover:bg-zinc-700 transition hidden md:block" 
-              title="Danh sách chương"
-            >
-              <List size={24} />
-            </Link>
+            {/* 👇 ĐÃ THAY THẾ LINK BẰNG COMPONENT MENU */}
+            <ChapterMenu 
+                slug={slug} 
+                chapters={allChapters} 
+                currentChapterId={chapter.id} 
+            />
 
             <Link
               href={chapter.next_chapter ? `/truyen/${slug}/${chapter.next_chapter.id}` : '#'}
-              className={`p-2 rounded hover:bg-zinc-700 transition ${!chapter.next_chapter ? 'opacity-30 pointer-events-none' : ''}`}
+              className={`p-2 rounded hover:bg-zinc-700 transition flex items-center justify-center ${!chapter.next_chapter ? 'opacity-30 pointer-events-none' : ''}`}
               title="Chương sau"
             >
               <ChevronRight size={24} />
@@ -174,7 +177,6 @@ export default async function ChapterReaderPage({
           <div className="flex flex-col items-center bg-black md:bg-transparent space-y-0 md:space-y-4">
             {chapter.content.content_images.map((imgUrl, index) => (
               <div key={index} className="relative w-full max-w-3xl shadow-2xl">
-                {/* Dùng thẻ img thường để hiển thị ảnh truyện tốt nhất (chiều cao tự động) */}
                 <img
                   src={getImageUrl(imgUrl)}
                   alt={`Trang ${index + 1}`}
@@ -193,7 +195,7 @@ export default async function ChapterReaderPage({
             </div>
         )}
 
-        {/* Thông báo nếu chương trống (Lỗi nhập liệu) */}
+        {/* Thông báo nếu chương trống */}
         {!isLocked && !chapter.content?.content_images?.length && !chapter.content?.content_text && (
              <div className="text-center py-20 text-zinc-500 italic">
                 Nội dung chương này đang được cập nhật...
@@ -221,8 +223,9 @@ export default async function ChapterReaderPage({
         </div>
       </div>
 
-      {/* 👇 COMPONENT LƯU LỊCH SỬ ĐỌC (ẨN) - Tự động chạy khi vào trang */}
+      {/* 👇 CÁC COMPONENT LOGIC ẨN (Client Components) */}
       <HistorySaver storyId={chapter.story.id} chapterId={chapter.id} />
+      <ViewTracker storyId={chapter.story.id} chapterId={chapter.id} /> 
 
     </div>
   );

@@ -61,6 +61,27 @@ const CommentService = {
         } catch (error) {
             throw error;
         }
+    },
+
+    // 👇 3. XÓA BÌNH LUẬN (MỚI THÊM)
+    deleteComment: async (commentId, userId, userRole) => {
+        try {
+            const comment = await Comment.findByPk(commentId);
+            if (!comment) return { status: 'error', message: 'Bình luận không tồn tại' };
+
+            // Kiểm tra quyền: Chỉ chủ cmt hoặc Admin/Mod mới được xóa
+            if (comment.user_id !== userId && userRole !== 'admin' && userRole !== 'moderator') {
+                return { status: 'error', message: 'Bạn không có quyền xóa bình luận này' };
+            }
+
+            // Xóa bình luận (Nếu có reply con, nên dùng cascade trong DB hoặc xóa thủ công)
+            // Ở đây ta dùng destroy, nếu DB setup cascade thì reply sẽ mất theo
+            await comment.destroy();
+            
+            return { status: 'success', message: 'Đã xóa bình luận' };
+        } catch (error) {
+            throw error;
+        }
     }
 };
 

@@ -38,6 +38,27 @@ const CommentController = {
             console.error(error);
             return res.status(500).json({ status: 'error', message: 'Lỗi server' });
         }
+    },
+
+    // 👇 API: Xóa bình luận (MỚI THÊM)
+    deleteComment: async (req, res) => {
+        try {
+            const { id } = req.params; // ID của comment cần xóa
+            const userId = req.user.id; // ID người thực hiện hành động (từ token)
+            const userRole = req.user.role; // Role người thực hiện (admin/moderator/member)
+
+            // Gọi service xử lý logic xóa và kiểm tra quyền
+            const result = await CommentService.deleteComment(id, userId, userRole);
+
+            if (result.status === 'error') {
+                // Trả về lỗi 403 nếu không có quyền hoặc lỗi khác
+                return res.status(403).json(result);
+            }
+            return res.status(200).json(result);
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ status: 'error', message: 'Lỗi server' });
+        }
     }
 };
 

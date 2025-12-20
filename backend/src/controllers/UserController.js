@@ -53,6 +53,41 @@ const UserController = {
             console.error(error);
             return res.status(500).json({ status: 'error', message: 'Lỗi server' });
         }
+    },
+
+    // 5. Cập nhật thông tin cá nhân (Avatar, Tên) - MỚI
+    updateProfile: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            // req.body chứa { username, avatar_url } gửi từ Frontend
+            const updatedUser = await UserService.updateProfile(userId, req.body);
+            return res.status(200).json({ status: 'success', data: updatedUser });
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ status: 'error', message: 'Lỗi server' });
+        }
+    },
+
+    // 6. Đổi mật khẩu - MỚI
+    changePassword: async (req, res) => {
+        try {
+            const userId = req.user.id;
+            const { oldPassword, newPassword } = req.body;
+
+            if (!oldPassword || !newPassword) {
+                return res.status(400).json({ status: 'error', message: 'Vui lòng nhập đủ thông tin' });
+            }
+
+            const result = await UserService.changePassword(userId, oldPassword, newPassword);
+            
+            if (result.status === 'error') {
+                return res.status(400).json(result);
+            }
+            return res.status(200).json(result);
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json({ status: 'error', message: 'Lỗi server' });
+        }
     }
 };
 
