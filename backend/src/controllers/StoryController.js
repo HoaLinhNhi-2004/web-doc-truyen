@@ -14,8 +14,9 @@ const StoryController = {
             const keyword = req.query.keyword || '';
             const sort = req.query.sort || 'latest';
             const categorySlug = req.query.category || '';
+            const timeframe = req.query.timeframe || ''; // Thêm tham số timeframe (day/week/month)
 
-            const result = await StoryService.getAllStories({ page, limit, keyword, sort, categorySlug });
+            const result = await StoryService.getAllStories({ page, limit, keyword, sort, categorySlug, timeframe });
 
             return res.status(200).json({
                 status: 'success',

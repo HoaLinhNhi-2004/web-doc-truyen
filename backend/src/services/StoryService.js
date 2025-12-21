@@ -1,10 +1,10 @@
 import { Op } from 'sequelize';
-// 👇 Thêm 'sequelize' vào import để dùng transaction
+// 👇 Thêm 'sequelize' vào import để dùng transaction và các hàm query raw nếu cần
 import { Story, Chapter, Category, ChapterContent, StoryCategory, sequelize } from '../models/index.js';
 
 const StoryService = {
-    // 1. Lấy danh sách truyện (Trang chủ & Lọc & Tìm kiếm)
-    getAllStories: async ({ page, limit, keyword, sort, categorySlug }) => {
+    // 1. Lấy danh sách truyện (Trang chủ & Lọc & Tìm kiếm & Hot Stories)
+    getAllStories: async ({ page, limit, keyword, sort, categorySlug, timeframe }) => {
         try {
             const offset = (page - 1) * limit;
             let whereClause = {};
@@ -23,27 +23,47 @@ const StoryService = {
 
             // --- XỬ LÝ LỌC ---
             
-            // A. Tìm theo tên truyện
+            // A. Tìm theo tên truyện (Case-insensitive)
             if (keyword) {
-                whereClause.title = { [Op.like]: `%${keyword}%` };
+                whereClause.title = sequelize.where(
+                    sequelize.fn('LOWER', sequelize.col('title')), 
+                    Op.like, 
+                    `%${keyword.toLowerCase()}%`
+                );
             }
 
-            // B. Lọc theo thể loại (Quan trọng)
+            // B. Lọc theo thể loại
             if (categorySlug) {
                 includeClause.push({
                     model: Category,
                     as: 'categories',
-                    where: { slug: categorySlug }, // Chỉ lấy truyện thuộc category này
+                    where: { slug: categorySlug },
                     attributes: ['id', 'name', 'slug'],
-                    through: { attributes: [] } // Ẩn bảng trung gian cho gọn
+                    through: { attributes: [] }
                 });
             }
 
-            // C. Sắp xếp
-            if (sort === 'view') {
-                orderClause = [['total_views', 'DESC']]; // Xem nhiều nhất
+            // C. Sắp xếp theo timeframe (day/week/month) - Chỉ dùng khi sort=view
+            if (sort === 'view' && timeframe) {
+                const now = new Date();
+                let startDate = new Date();
+                
+                if (timeframe === 'day') {
+                    startDate.setDate(now.getDate() - 1);
+                } else if (timeframe === 'week') {
+                    startDate.setDate(now.getDate() - 7);
+                } else if (timeframe === 'month') {
+                    startDate.setMonth(now.getMonth() - 1);
+                }
+                
+                // Lọc theo ngày cập nhật gần đây
+                whereClause.updated_at = { [Op.gte]: startDate };
+                orderClause = [['total_views', 'DESC']];
+            } else if (sort === 'view') {
+                // Không có timeframe, lấy tất cả xem nhiều nhất
+                orderClause = [['total_views', 'DESC']];
             } else if (sort === 'new') {
-                orderClause = [['created_at', 'DESC']]; // Truyện mới đăng
+                orderClause = [['created_at', 'DESC']];
             }
 
             // --- TRUY VẤN DB ---
@@ -52,10 +72,9 @@ const StoryService = {
                 limit: limit,
                 offset: offset,
                 order: orderClause,
-                // 👇 Đã thêm 'average_rating' vào đây
                 attributes: ['id', 'title', 'slug', 'cover_image', 'status', 'type', 'total_views', 'updated_at', 'average_rating'],
                 include: includeClause,
-                distinct: true // Bắt buộc có để đếm đúng khi include nhiều bảng
+                distinct: true
             });
 
             return {
@@ -70,10 +89,22 @@ const StoryService = {
     },
 
     // 2. Lấy chi tiết truyện (Kèm danh sách chương)
-    getStoryBySlug: async (slug) => {
+    // [FIX QUAN TRỌNG] Hỗ trợ tìm bằng cả ID hoặc Slug
+    getStoryBySlug: async (idOrSlug) => {
         try {
+            let whereCondition = {};
+            const cleanInput = String(idOrSlug).trim();
+            // Regex kiểm tra: Nếu là số thì tìm theo ID, ngược lại tìm theo Slug
+            const isId = /^\d+$/.test(cleanInput);
+
+            if (isId) {
+                whereCondition = { id: parseInt(cleanInput) };
+            } else {
+                whereCondition = { slug: cleanInput };
+            }
+
             const story = await Story.findOne({
-                where: { slug: slug },
+                where: whereCondition,
                 include: [
                     {
                         model: Category,
@@ -125,7 +156,6 @@ const StoryService = {
             const currentNum = currentChapter.chapter_num;
 
             // Tìm chương trước (Số chap nhỏ hơn gần nhất)
-            // Ví dụ: Đang ở chap 10, tìm chap < 10 (là chap 9)
             const prevChapter = await Chapter.findOne({
                 where: { 
                     story_id: storyId,
@@ -136,7 +166,6 @@ const StoryService = {
             });
 
             // Tìm chương sau (Số chap lớn hơn gần nhất)
-            // Ví dụ: Đang ở chap 10, tìm chap > 10 (là chap 11)
             const nextChapter = await Chapter.findOne({
                 where: { 
                     story_id: storyId,

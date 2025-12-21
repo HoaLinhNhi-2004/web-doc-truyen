@@ -56,10 +56,21 @@ const AdminController = {
 
     updateStory: async (req, res) => {
         try {
+            console.log('[AdminController.updateStory] ID:', req.params.id);
+            console.log('[AdminController.updateStory] Body:', req.body);
+            
             const id = parseInt(req.params.id); // [FIX] Ép kiểu về số
+            
+            if (!id || isNaN(id)) {
+                console.error('[AdminController.updateStory] ❌ ID không hợp lệ:', req.params.id);
+                return res.status(400).json({ status: 'error', message: 'Story ID không hợp lệ' });
+            }
+            
             const data = await AdminService.updateStory(id, req.body);
+            console.log('[AdminController.updateStory] ✅ Thành công');
             return res.status(200).json({ status: 'success', data });
         } catch (error) {
+            console.error('[AdminController.updateStory] ❌ Lỗi:', error.message);
             return res.status(500).json({ status: 'error', message: error.message });
         }
     },
@@ -79,10 +90,21 @@ const AdminController = {
     // ============================================
     createChapter: async (req, res) => {
         try {
+            console.log('[AdminController.createChapter] Params:', req.params);
+            console.log('[AdminController.createChapter] Body:', req.body);
+            
             const storyId = parseInt(req.params.storyId); // [FIX] Ép kiểu về số
+            
+            if (!storyId || isNaN(storyId)) {
+                console.error('[AdminController.createChapter] ❌ StoryId không hợp lệ:', req.params.storyId);
+                return res.status(400).json({ status: 'error', message: 'Story ID không hợp lệ' });
+            }
+            
             const data = await AdminService.createChapter(storyId, req.body);
+            console.log('[AdminController.createChapter] ✅ Thành công, trả về:', data);
             return res.status(201).json({ status: 'success', data });
         } catch (error) {
+            console.error('[AdminController.createChapter] ❌ Lỗi:', error.message);
             return res.status(500).json({ status: 'error', message: error.message });
         }
     },

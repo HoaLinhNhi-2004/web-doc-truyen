@@ -101,9 +101,9 @@ const AdminService = {
         try {
             const { title, status, cover_image, author_name, description, type, categories } = data;
             
-            // Update thông tin cơ bản
+            // Update thông tin cơ bản + cập nhật updated_at
             await Story.update(
-                { title, status, cover_image, author_name, description, type }, 
+                { title, status, cover_image, author_name, description, type, updated_at: new Date() }, 
                 { where: { id: id }, transaction: t }
             );
 
@@ -147,9 +147,13 @@ const AdminService = {
         try {
             const { chapter_num, title, content_images, content_text, price } = data;
             
+            console.log('[createChapter] Dữ liệu nhận được:', { storyId, chapter_num, title, content_images: content_images?.length || 0, content_text, price });
+            
             // Ép kiểu về int cho chắc chắn
             const safeStoryId = parseInt(storyId); 
             const safeImages = Array.isArray(content_images) ? content_images : [];
+
+            console.log('[createChapter] Tạo chương cho story:', safeStoryId, 'Chapter #', chapter_num);
 
             const newChapter = await Chapter.create({
                 story_id: safeStoryId,
@@ -158,18 +162,27 @@ const AdminService = {
                 price: price || 0
             }, { transaction: t });
 
+            console.log('[createChapter] Chương đã tạo, ID:', newChapter.id);
+
             await ChapterContent.create({
                 chapter_id: newChapter.id,
                 content_images: safeImages, 
                 content_text: content_text || null
             }, { transaction: t });
 
+            console.log('[createChapter] Nội dung chương đã lưu');
+
             await Story.update({ updated_at: new Date() }, { where: { id: safeStoryId }, transaction: t });
 
+            console.log('[createChapter] Cập nhật updated_at của story');
+
             await t.commit();
+            
+            console.log('[createChapter] ✅ Tạo chương thành công!');
             return newChapter;
         } catch (error) {
             await t.rollback();
+            console.error('[createChapter] ❌ Lỗi:', error.message, error.stack);
             throw error;
         }
     },

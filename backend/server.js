@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
 
 // --- PHẦN QUAN TRỌNG NHẤT: SỬA LỖI SOCKET HANG UP ---
 // Thêm tham số '0.0.0.0' vào hàm listen
-const listener = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 Server is running on the port ${listener.address().port}`);
-    console.log(`🌍 Network: http://127.0.0.1:${listener.address().port}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 Server is running on the port ${PORT}`);
+    console.log(`🌍 Network: http://127.0.0.1:${PORT}`);
 });

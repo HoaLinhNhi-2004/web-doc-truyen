@@ -104,7 +104,7 @@ export default function FollowButton({ story }: FollowButtonProps) {
       onClick={handleToggleFollow}
       disabled={loading}
       className={`
-        mt-4 w-full md:w-auto px-6 py-3 rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition shadow-lg
+        w-full md:w-auto rounded-lg font-bold text-lg flex items-center justify-center gap-2 transition shadow-lg
         ${isFollowed 
           ? 'bg-gray-200 dark:bg-gray-800 text-red-500 hover:bg-gray-300 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600' // Đã theo dõi (Màu xám/đỏ)
           : 'bg-green-600 hover:bg-green-700 text-white border border-green-600' // Chưa theo dõi (Màu xanh)

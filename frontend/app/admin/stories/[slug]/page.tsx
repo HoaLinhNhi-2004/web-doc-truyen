@@ -167,11 +167,21 @@ export default function EditStoryPage() {
       const data = await res.json();
       if (data.status === 'success') {
         alert('Cập nhật thành công!');
-        router.refresh();
+        // Fetch lại dữ liệu để cập nhật UI
+        const storyRes = await fetch(`http://127.0.0.1:5000/api/admin/stories/${storyId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const storyData = await storyRes.json();
+        if (storyData.status === 'success') {
+          setTitle(storyData.data.title);
+          setAuthor(storyData.data.author_name || '');
+          setDesc(storyData.data.description || '');
+        }
       } else {
         alert('Lỗi: ' + data.message);
       }
     } catch (error) {
+      console.error('Lỗi update:', error);
       alert('Có lỗi xảy ra khi lưu!');
     } finally {
       setLoading(false);

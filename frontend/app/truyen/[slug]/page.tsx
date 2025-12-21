@@ -268,22 +268,22 @@ export default async function StoryDetailPage({
               </div>
             </div>
 
-            {/* 👇 2 NÚT: ĐỌC & THEO DÕI (Đã căn đều chiều cao) */}
-            <div className="hidden md:flex items-center gap-4 h-12">
+            {/* 👇 2 NÚT: ĐỌC & THEO DÕI (Căn chỉnh đối xứng) */}
+            <div className="hidden md:flex items-center gap-4">
               {story.danh_sach_chuong.length > 0 ? (
                 <Link 
                   href={`/truyen/${slug}/${story.danh_sach_chuong[story.danh_sach_chuong.length - 1].id}`}
-                  className="h-full px-8 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg hover:shadow-red-600/30 transition flex items-center justify-center gap-2"
+                  className="px-8 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg hover:shadow-red-600/30 transition flex items-center justify-center gap-2"
                 >
                   <BookOpen size={20} /> Đọc từ đầu
                 </Link>
               ) : (
-                <button disabled className="h-full px-8 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed flex items-center gap-2">
+                <button disabled className="px-8 py-3 bg-gray-400 text-white font-bold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
                   Chưa có chương
                 </button>
               )}
               
-              <div className="h-full [&_button]:h-full [&_button]:flex [&_button]:items-center [&_button]:justify-center [&_button]:px-6 [&_button]:rounded-lg">
+              <div className="[&_button]:px-8 [&_button]:py-3 [&_button]:m-0">
                 <FollowButton story={storyDataForButton} />
               </div>
             </div>

@@ -17,6 +17,9 @@ export default function HotStoriesPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [stories, setStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Helper xử lý ảnh (Thêm domain Backend nếu thiếu)
   const getImageUrl = (url: string) => {
@@ -27,54 +30,65 @@ export default function HotStoriesPage() {
       return `http://127.0.0.1:5000${cleanUrl}`;
   };
 
-  useEffect(() => {
-    const fetchHotStories = async () => {
-      setLoading(true);
-      try {
-        // Gọi API lấy truyện xem nhiều nhất (sort=view)
-        // Backend hỗ trợ: /api/stories?sort=view
-        // Dùng 127.0.0.1:5000 để tránh lỗi mạng Windows
-        const res = await fetch(`http://127.0.0.1:5000/api/stories?sort=view&limit=24`);
-        const data = await res.json();
+  // Hàm fetch truyện hot
+  const fetchHotStories = async (page: number = 1, isLoadMore: boolean = false) => {
+    const setLoadingState = isLoadMore ? setLoadingMore : setLoading;
+    setLoadingState(true);
+    try {
+      // Xây dựng URL API với timeframe parameter
+      let apiUrl = `http://127.0.0.1:5000/api/stories?sort=view&limit=20&page=${page}`;
+      
+      // Thêm timeframe nếu không phải 'all'
+      if (activeTab !== 'all') {
+        apiUrl += `&timeframe=${activeTab}`;
+      }
 
-        if (data.status === 'success') {
-          // Map dữ liệu từ Backend sang cấu trúc Frontend cần
-          let fetchedStories = data.data.map((item: any) => ({
-            id: item.id,
-            slug: item.slug,
-            ten_truyen: item.title, // Backend: title -> Frontend: ten_truyen
-            anh_bia: getImageUrl(item.cover_image),
-            chuong_moi_nhat: item.chapters && item.chapters.length > 0 
-                ? item.chapters[0].title 
-                : 'Đang cập nhật',
-            views: item.total_views // Lấy thêm lượt xem để hiển thị
-          }));
+      const res = await fetch(apiUrl);
+      const data = await res.json();
 
-          // --- LOGIC GIẢ LẬP LỌC THEO THỜI GIAN (Client-side) ---
-          // Vì Backend chưa có API lọc theo thời gian, ta xử lý tạm ở Frontend
-          if (activeTab === 'day') {
-             // Ví dụ: Lấy 8 truyện đầu tiên làm "Top Ngày"
-             fetchedStories = fetchedStories.slice(0, 8); 
-          } else if (activeTab === 'week') {
-             // Ví dụ: Đảo ngược danh sách để thay đổi vị trí
-             fetchedStories = [...fetchedStories].reverse(); 
-          } else if (activeTab === 'month') {
-             // Ví dụ: Sắp xếp theo tên để tạo sự khác biệt
-             fetchedStories = fetchedStories.sort((a: any, b: any) => a.ten_truyen.localeCompare(b.ten_truyen)); 
-          }
+      if (data.status === 'success') {
+        // Map dữ liệu từ Backend sang cấu trúc Frontend cần
+        const fetchedStories = data.data.map((item: any) => ({
+          id: item.id,
+          slug: item.slug,
+          ten_truyen: item.title,
+          anh_bia: getImageUrl(item.cover_image),
+          chuong_moi_nhat: item.chapters && item.chapters.length > 0 
+              ? item.chapters[0].title 
+              : 'Đang cập nhật',
+          views: item.total_views
+        }));
 
+        // Cập nhật trạng thái phân trang
+        setTotalPages(data.pagination.totalPages);
+        setCurrentPage(page);
+
+        // Nếu là load thêm, append vào danh sách cũ
+        if (isLoadMore) {
+          setStories(prev => [...prev, ...fetchedStories]);
+        } else {
           setStories(fetchedStories);
         }
-      } catch (error) {
-        console.error("Lỗi tải truyện hot:", error);
-        setStories([]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Lỗi tải truyện hot:", error);
+      if (!isLoadMore) {
+        setStories([]);
+      }
+    } finally {
+      setLoadingState(false);
+    }
+  };
 
-    fetchHotStories();
-  }, [activeTab]); // Chạy lại khi chuyển Tab
+  useEffect(() => {
+    setCurrentPage(1);
+    fetchHotStories(1, false);
+  }, [activeTab]);
+
+  // Hàm xử lý click "Xem thêm"
+  const handleLoadMore = () => {
+    fetchHotStories(currentPage + 1, true);
+  };
 
   return (
     <div className="min-h-screen bg-background pt-24 pb-12">
@@ -180,12 +194,23 @@ export default function HotStoriesPage() {
             </div>
         )}
 
-        {/* Nút Xem Thêm (Giả lập) */}
-        {!loading && stories.length > 0 && (
+        {/* Nút Xem Thêm */}
+        {!loading && stories.length > 0 && currentPage < totalPages && (
             <div className="mt-12 text-center">
-            <button className="px-8 py-3 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-full transition border border-border">
-                Xem thêm 20 truyện nữa
-            </button>
+              <button 
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-8 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-full transition border border-blue-600 hover:border-blue-700 disabled:border-gray-400 flex items-center justify-center gap-2 mx-auto"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    Đang tải...
+                  </>
+                ) : (
+                  'Xem thêm 20 truyện nữa'
+                )}
+              </button>
             </div>
         )}
 
