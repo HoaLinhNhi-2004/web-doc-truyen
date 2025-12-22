@@ -41,7 +41,7 @@ const AdminService = {
         }
     },
 
-    // [SIMPLIFIED] Lấy chi tiết truyện theo ID (Chỉ nhận ID)
+    // Lấy chi tiết truyện theo ID
     getStoryById: async (id) => {
         try {
             const story = await Story.findByPk(id, {
@@ -95,19 +95,16 @@ const AdminService = {
         }
     },
 
-    // [SIMPLIFIED] Update truyện theo ID
     updateStory: async (id, data) => {
         const t = await sequelize.transaction();
         try {
             const { title, status, cover_image, author_name, description, type, categories } = data;
             
-            // Update thông tin cơ bản + cập nhật updated_at
             await Story.update(
                 { title, status, cover_image, author_name, description, type, updated_at: new Date() }, 
                 { where: { id: id }, transaction: t }
             );
 
-            // Update thể loại
             if (categories && Array.isArray(categories)) {
                 await StoryCategory.destroy({ where: { story_id: id }, transaction: t });
                 if (categories.length > 0) {
@@ -127,7 +124,6 @@ const AdminService = {
         }
     },
 
-    // [SIMPLIFIED] Xóa truyện theo ID
     deleteStory: async (id) => {
         try {
             const count = await Story.destroy({ where: { id: id } });
@@ -141,19 +137,13 @@ const AdminService = {
     // 2. QUẢN LÝ CHƯƠNG
     // ===========================
     
-    // [SIMPLIFIED] Tạo chương (Nhận storyId trực tiếp)
     createChapter: async (storyId, data) => {
         const t = await sequelize.transaction();
         try {
             const { chapter_num, title, content_images, content_text, price } = data;
             
-            console.log('[createChapter] Dữ liệu nhận được:', { storyId, chapter_num, title, content_images: content_images?.length || 0, content_text, price });
-            
-            // Ép kiểu về int cho chắc chắn
             const safeStoryId = parseInt(storyId); 
             const safeImages = Array.isArray(content_images) ? content_images : [];
-
-            console.log('[createChapter] Tạo chương cho story:', safeStoryId, 'Chapter #', chapter_num);
 
             const newChapter = await Chapter.create({
                 story_id: safeStoryId,
@@ -162,27 +152,19 @@ const AdminService = {
                 price: price || 0
             }, { transaction: t });
 
-            console.log('[createChapter] Chương đã tạo, ID:', newChapter.id);
-
             await ChapterContent.create({
                 chapter_id: newChapter.id,
                 content_images: safeImages, 
                 content_text: content_text || null
             }, { transaction: t });
 
-            console.log('[createChapter] Nội dung chương đã lưu');
-
             await Story.update({ updated_at: new Date() }, { where: { id: safeStoryId }, transaction: t });
 
-            console.log('[createChapter] Cập nhật updated_at của story');
-
             await t.commit();
-            
-            console.log('[createChapter] ✅ Tạo chương thành công!');
             return newChapter;
         } catch (error) {
             await t.rollback();
-            console.error('[createChapter] ❌ Lỗi:', error.message, error.stack);
+            console.error('[createChapter] ❌ Lỗi:', error.message);
             throw error;
         }
     },
@@ -223,7 +205,6 @@ const AdminService = {
     deleteChapter: async (id) => {
         const t = await sequelize.transaction();
         try {
-            // Xóa dữ liệu liên quan trước khi xóa chương
             await ChapterContent.destroy({ where: { chapter_id: id }, transaction: t });
             await ReadingHistory.destroy({ where: { last_chapter_id: id }, transaction: t });
             await UnlockedChapter.destroy({ where: { chapter_id: id }, transaction: t });
@@ -235,7 +216,6 @@ const AdminService = {
             return count;
         } catch (error) {
             await t.rollback();
-            console.error("Lỗi xóa chương:", error);
             throw error;
         }
     },
@@ -254,10 +234,23 @@ const AdminService = {
         }
     },
 
+    // [CẬP NHẬT] Hàm Ban/Unban (Toggle)
     banUser: async (userId) => {
         try {
-            await User.update({ status: 'banned' }, { where: { id: userId } });
-            return true;
+            const user = await User.findByPk(userId);
+            if (!user) {
+                throw new Error('Người dùng không tồn tại');
+            }
+
+            // Kiểm tra trạng thái hiện tại để đảo ngược
+            // Nếu đang 'banned' -> Chuyển thành 'active' (Mở khóa)
+            // Nếu đang 'active' -> Chuyển thành 'banned' (Khóa)
+            const newStatus = user.status === 'banned' ? 'active' : 'banned';
+            
+            await user.update({ status: newStatus });
+            
+            // Trả về trạng thái mới để Controller biết đường thông báo
+            return newStatus; 
         } catch (error) {
             throw error;
         }
@@ -295,7 +288,7 @@ const AdminService = {
     },
 
     // ===========================
-    // 5. TÀI CHÍNH
+    // 5. TÀI CHÍNH (NẠP THỦ CÔNG & SET GIÁ)
     // ===========================
     addCoinsToUser: async (userId, amount) => {
         const t = await sequelize.transaction();
@@ -310,7 +303,8 @@ const AdminService = {
                 user_id: userId,
                 amount: amount,
                 type: 'deposit',
-                description: `Admin nạp thủ công ${amount} xu`
+                description: `Admin nạp thủ công ${amount} xu`,
+                status: 'completed' // Nạp thủ công thì xong luôn
             }, { transaction: t });
 
             await t.commit();
@@ -332,6 +326,64 @@ const AdminService = {
         } catch (error) {
             throw error;
         }
+    },
+
+    // ===========================
+    // 6. QUẢN LÝ GIAO DỊCH
+    // ===========================
+    
+    // Lấy danh sách giao dịch (để Admin duyệt)
+    getAllTransactions: async ({ page, limit }) => {
+        const offset = (page - 1) * limit;
+        const { count, rows } = await Transaction.findAndCountAll({
+            limit,
+            offset,
+            order: [['created_at', 'DESC']],
+            include: [{ 
+                model: User, 
+                as: 'user', 
+                attributes: ['username', 'email'] 
+            }]
+        });
+        return { transactions: rows, total: count };
+    },
+
+    // Duyệt nạp tiền (Cộng tiền + Đổi status)
+    approveDeposit: async (transactionId) => {
+        const t = await sequelize.transaction();
+        try {
+            const trans = await Transaction.findByPk(transactionId);
+            if (!trans) throw new Error('Giao dịch không tồn tại');
+            if (trans.status !== 'pending') throw new Error('Giao dịch này đã được xử lý rồi');
+
+            // 1. Cộng tiền cho User
+            await User.increment('coin_balance', { 
+                by: trans.amount, 
+                where: { id: trans.user_id },
+                transaction: t
+            });
+
+            // 2. Cập nhật trạng thái transaction
+            trans.status = 'completed';
+            await trans.save({ transaction: t });
+
+            await t.commit();
+            return true;
+        } catch (error) {
+            await t.rollback();
+            throw error;
+        }
+    },
+
+    // Từ chối nạp tiền
+    rejectDeposit: async (transactionId) => {
+        const trans = await Transaction.findByPk(transactionId);
+        if (!trans) throw new Error('Không tìm thấy');
+        if (trans.status !== 'pending') throw new Error('Đã xử lý rồi');
+        
+        trans.status = 'cancelled';
+        await trans.save();
+        return true;
     }
 };
 

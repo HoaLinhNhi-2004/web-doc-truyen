@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Search, Lock, Ban, CheckCircle } from 'lucide-react';
+import { Search, Lock, Ban, CheckCircle, Coins, Unlock } from 'lucide-react'; // [MỚI] Thêm icon Unlock
 
 interface UserData {
   id: number;
@@ -44,7 +44,7 @@ export default function UsersManagement() {
     }
   };
 
-  // 2. Xử lý Khóa/Mở khóa tài khoản
+  // 2. [CẬP NHẬT] Xử lý Khóa/Mở khóa tài khoản
   const handleBanUser = async (userId: number, currentStatus: string) => {
     const isBanned = currentStatus === 'banned';
     const actionText = isBanned ? 'MỞ KHÓA' : 'KHÓA';
@@ -52,9 +52,6 @@ export default function UsersManagement() {
     if (!confirm(`Bạn có chắc muốn ${actionText} tài khoản này không?`)) return;
 
     try {
-      // Gọi API Ban (Nếu muốn làm mở khóa, bạn cần thêm API unban ở backend, hiện tại dùng chung logic ban để demo)
-      // Lưu ý: Backend hiện tại của bạn chỉ có API chuyển status thành 'banned'. 
-      // Nếu muốn mở khóa, bạn cần sửa backend thêm API update status = 'active'.
       const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${userId}/ban`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -62,15 +59,49 @@ export default function UsersManagement() {
       
       const data = await res.json();
       if (res.ok) {
-        alert(`Đã ${actionText.toLowerCase()} tài khoản thành công!`);
-        // Cập nhật UI: Nếu đang active -> banned. (Lưu ý: Logic toggle cần backend hỗ trợ)
-        // Tạm thời set thành 'banned' theo logic backend hiện có
-        setUsers(prev => prev.map(u => u.id === userId ? { ...u, status: 'banned' } : u));
+        alert(data.message); // Hiển thị thông báo từ server
+        
+        // [QUAN TRỌNG] Cập nhật ngay UI theo status mới trả về từ backend
+        setUsers(prev => prev.map(u => 
+            u.id === userId ? { ...u, status: data.new_status } : u
+        ));
       } else {
         alert('Lỗi: ' + data.message);
       }
     } catch (error) {
       alert('Lỗi kết nối server');
+    }
+  };
+
+  // 3. Xử lý Nạp tiền
+  const handleDeposit = async (userId: number) => {
+    const amountStr = prompt("Nhập số xu muốn cộng thêm cho user này:");
+    if (!amountStr) return;
+    
+    const amount = parseInt(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+        return alert("Số tiền không hợp lệ");
+    }
+
+    try {
+        const res = await fetch(`http://127.0.0.1:5000/api/admin/users/deposit`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ userId, amount })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            alert(data.message); 
+            fetchUsers(token); // Load lại danh sách để cập nhật số dư
+        } else {
+            alert("Lỗi: " + data.message);
+        }
+    } catch (error) {
+        alert("Lỗi kết nối");
     }
   };
 
@@ -107,15 +138,16 @@ export default function UsersManagement() {
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Thông tin User</th>
                 <th className="px-6 py-4">Vai trò</th>
+                <th className="px-6 py-4">Số dư</th> 
                 <th className="px-6 py-4">Trạng thái</th>
                 <th className="px-6 py-4 text-center">Hành động</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center">Đang tải danh sách...</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center">Đang tải danh sách...</td></tr>
               ) : filteredUsers.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center italic">Không tìm thấy thành viên nào.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-8 text-center italic">Không tìm thấy thành viên nào.</td></tr>
               ) : (
                 filteredUsers.map((user) => (
                   <tr key={user.id} className="hover:bg-zinc-800/50 transition">
@@ -140,6 +172,14 @@ export default function UsersManagement() {
                         {user.role}
                       </span>
                     </td>
+                    
+                    {/* Cột hiển thị số dư xu */}
+                    <td className="px-6 py-3">
+                        <span className="text-yellow-500 font-bold font-mono">
+                            {user.coin_balance?.toLocaleString() || 0} xu
+                        </span>
+                    </td>
+
                     <td className="px-6 py-3">
                       {user.status === 'banned' ? (
                         <span className="text-red-500 flex items-center gap-1 font-bold text-xs"><Lock size={12} /> Bị khóa</span>
@@ -150,19 +190,27 @@ export default function UsersManagement() {
                     <td className="px-6 py-3">
                       <div className="flex items-center justify-center gap-2">
                         
-                        {/* Nút Khóa tài khoản */}
-                        {user.role !== 'admin' && ( // Không cho khóa Admin
+                        <button
+                            onClick={() => handleDeposit(user.id)}
+                            className="p-2 rounded bg-yellow-600/20 hover:bg-yellow-600 hover:text-white text-yellow-500 transition"
+                            title="Nạp xu thủ công"
+                        >
+                            <Coins size={16} />
+                        </button>
+                        
+                        {/* [CẬP NHẬT UI] Nút Toggle Ban/Unban */}
+                        {user.role !== 'admin' && (
                           <button 
                             onClick={() => handleBanUser(user.id, user.status)}
                             className={`p-2 rounded transition flex items-center gap-1 ${
                               user.status === 'banned' 
-                                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' // Tạm thời disable nếu đã khóa (chờ backend hỗ trợ unban)
-                                : 'bg-red-900/20 hover:bg-red-600 hover:text-white text-red-500'
+                                ? 'bg-green-600/20 hover:bg-green-600 hover:text-white text-green-500' // Nút Xanh cho Mở khóa
+                                : 'bg-red-900/20 hover:bg-red-600 hover:text-white text-red-500'     // Nút Đỏ cho Khóa
                             }`} 
-                            title={user.status === 'banned' ? 'Đã bị khóa' : 'Khóa tài khoản'}
-                            disabled={user.status === 'banned'}
+                            title={user.status === 'banned' ? 'Mở khóa tài khoản' : 'Khóa tài khoản'}
                           >
-                            <Ban size={16} />
+                            {/* Đổi Icon dựa trên trạng thái */}
+                            {user.status === 'banned' ? <Unlock size={16} /> : <Ban size={16} />}
                           </button>
                         )}
                       </div>

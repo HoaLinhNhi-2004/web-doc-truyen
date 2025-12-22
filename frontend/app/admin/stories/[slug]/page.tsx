@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation'; // [FIX] Dùng useParams thay cho props
+import { useRouter, useParams } from 'next/navigation'; 
 import Image from 'next/image';
-import { Upload, Save, ArrowLeft, RefreshCw, CheckSquare, Square, Plus, FileText, Trash2, Edit } from 'lucide-react';
+import { Upload, Save, ArrowLeft, RefreshCw, CheckSquare, Square, Plus, FileText, Trash2, Edit, Lock } from 'lucide-react';
 import Link from 'next/link';
 
 interface Category {
@@ -17,13 +17,11 @@ interface Chapter {
   title: string;
   created_at: string;
   views: number;
+  price?: number; // [MỚI] Thêm thuộc tính price
 }
 
 export default function EditStoryPage() {
   const router = useRouter();
-  
-  // [FIX QUAN TRỌNG] Dùng useParams để lấy ID từ URL an toàn nhất
-  // Tránh lỗi "undefined" khi dùng props params
   const params = useParams();
   const slug = params?.slug as string; 
 
@@ -47,7 +45,6 @@ export default function EditStoryPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
 
   useEffect(() => {
-    // Chỉ chạy khi slug đã có giá trị
     if (!slug) return;
 
     const t = localStorage.getItem('accessToken');
@@ -55,27 +52,18 @@ export default function EditStoryPage() {
 
     const fetchData = async () => {
       try {
-        // 1. Lấy danh sách thể loại
-        // [FIX] Đảm bảo đúng cổng 5000
         const catRes = await fetch('http://127.0.0.1:5000/api/categories');
         const catData = await catRes.json();
         if (catData.status === 'success') {
           setAllCategories(catData.data);
         }
 
-        // 2. Lấy chi tiết truyện dành cho Admin
-        // [FIX] Đổi URL sang /api/admin/stories/... để tìm theo ID
-        // [FIX] Thêm headers Authorization để xác thực Admin
         if (t) {
             const storyRes = await fetch(`http://127.0.0.1:5000/api/admin/stories/${slug}`, {
-                headers: {
-                    'Authorization': `Bearer ${t}`
-                }
+                headers: { 'Authorization': `Bearer ${t}` }
             });
             
-            // Kiểm tra nếu lỗi 404 hoặc 500
             if (!storyRes.ok) {
-                console.error("API Lỗi:", storyRes.status, storyRes.statusText);
                 alert(`Không thể tải truyện (Lỗi ${storyRes.status}). Vui lòng kiểm tra Server.`);
                 return;
             }
@@ -113,7 +101,7 @@ export default function EditStoryPage() {
     };
 
     fetchData();
-  }, [slug, router]); // Dependency thay đổi khi slug thay đổi
+  }, [slug, router]);
 
   const toggleCategory = (id: number) => {
     setSelectedCategories(prev => {
@@ -152,7 +140,6 @@ export default function EditStoryPage() {
 
     setLoading(true);
     try {
-      // [FIX] URL API Admin
       const res = await fetch(`http://127.0.0.1:5000/api/admin/stories/${storyId}`, {
         method: 'PUT',
         headers: { 
@@ -167,7 +154,6 @@ export default function EditStoryPage() {
       const data = await res.json();
       if (data.status === 'success') {
         alert('Cập nhật thành công!');
-        // Fetch lại dữ liệu để cập nhật UI
         const storyRes = await fetch(`http://127.0.0.1:5000/api/admin/stories/${storyId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -303,9 +289,19 @@ export default function EditStoryPage() {
                         chapters.map(chap => (
                             <div key={chap.id} className="group bg-zinc-950 border border-zinc-800 p-3 rounded-lg flex items-center justify-between hover:border-zinc-600 transition">
                                 <div>
-                                    <p className="text-sm font-bold text-zinc-300 group-hover:text-blue-400 transition">
-                                        {chap.title || `Chương ${chap.chapter_num}`}
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-sm font-bold text-zinc-300 group-hover:text-blue-400 transition">
+                                            {chap.title || `Chương ${chap.chapter_num}`}
+                                        </p>
+                                        
+                                        {/* [HIỂN THỊ ICON VIP] */}
+                                        {chap.price && chap.price > 0 ? (
+                                            <span className="px-2 py-0.5 bg-yellow-900/30 border border-yellow-600/50 text-yellow-500 text-[10px] font-bold rounded flex items-center gap-1">
+                                                <Lock size={10} /> VIP {chap.price}
+                                            </span>
+                                        ) : null}
+                                    </div>
+
                                     <div className="text-xs text-zinc-500 flex gap-3 mt-1">
                                         <span>#{chap.chapter_num}</span>
                                         <span>{new Date(chap.created_at).toLocaleDateString('vi-VN')}</span>

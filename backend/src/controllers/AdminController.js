@@ -141,11 +141,25 @@ const AdminController = {
         }
     },
 
+    // [CẬP NHẬT QUAN TRỌNG] Xử lý Khóa/Mở khóa
     banUser: async (req, res) => {
         try {
             const id = parseInt(req.params.id); // [FIX] Ép kiểu về số
-            await AdminService.banUser(id);
-            return res.status(200).json({ status: 'success', message: 'Đã khóa tài khoản user' });
+            
+            // Gọi hàm toggle bên Service, nhận về status mới ('active' hoặc 'banned')
+            const newStatus = await AdminService.banUser(id);
+            
+            // Tạo thông báo phù hợp
+            const message = newStatus === 'banned' 
+                ? 'Đã KHÓA tài khoản thành công!' 
+                : 'Đã MỞ KHÓA tài khoản thành công!';
+
+            // Trả về new_status để frontend cập nhật icon màu sắc
+            return res.status(200).json({ 
+                status: 'success', 
+                message: message,
+                new_status: newStatus 
+            });
         } catch (error) {
             return res.status(500).json({ status: 'error', message: error.message });
         }
@@ -216,6 +230,43 @@ const AdminController = {
             return res.status(200).json({ status: 'success', message: statusMsg, data: chapter });
         } catch (error) {
             return res.status(500).json({ status: 'error', message: 'Lỗi server' });
+        }
+    },
+
+    // ============================================
+    // 6. QUẢN LÝ GIAO DỊCH (MỚI)
+    // ============================================
+    getTransactions: async (req, res) => {
+        try {
+            const page = parseInt(req.query.page) || 1;
+            const result = await AdminService.getAllTransactions({ page, limit: 20 });
+            return res.status(200).json({ 
+                status: 'success', 
+                data: result.transactions, 
+                total: result.total 
+            });
+        } catch (e) {
+            return res.status(500).json({ status: 'error', message: e.message });
+        }
+    },
+
+    approveTrans: async (req, res) => {
+        try {
+            const id = parseInt(req.params.id); // [FIX] Ép kiểu về số
+            await AdminService.approveDeposit(id);
+            return res.json({ status: 'success', message: 'Đã duyệt nạp tiền!' });
+        } catch (e) {
+            return res.status(400).json({ status: 'error', message: e.message });
+        }
+    },
+
+    rejectTrans: async (req, res) => {
+        try {
+            const id = parseInt(req.params.id); // [FIX] Ép kiểu về số
+            await AdminService.rejectDeposit(id);
+            return res.json({ status: 'success', message: 'Đã từ chối giao dịch.' });
+        } catch (e) {
+            return res.status(400).json({ status: 'error', message: e.message });
         }
     }
 };

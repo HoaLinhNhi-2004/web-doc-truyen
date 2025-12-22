@@ -11,6 +11,9 @@ import CategoryController from '../controllers/CategoryController.js';
 
 import authMiddleware from '../middlewares/authMiddleware.js';
 import adminMiddleware from '../middlewares/adminMiddleware.js';
+// [MỚI] Import middleware xác thực không bắt buộc (dùng cho xem chương)
+import optionalAuthMiddleware from '../middlewares/optionalAuthMiddleware.js'; 
+
 import upload from '../config/upload.js';
 
 const router = express.Router();
@@ -24,7 +27,10 @@ const initRoutes = (app) => {
     // --- Truyện & Chương ---
     router.get('/api/stories', StoryController.getStories);
     router.get('/api/stories/:slug', StoryController.getStoryDetail);
-    router.get('/api/chapters/:id', StoryController.getChapter);
+    
+    // [QUAN TRỌNG] Thêm optionalAuthMiddleware vào đây để check quyền VIP
+    router.get('/api/chapters/:id', optionalAuthMiddleware, StoryController.getChapter);
+    
     router.post('/api/stories/:id/view', StoryController.increaseView);
 
     // --- Thể loại ---
@@ -101,6 +107,11 @@ const initRoutes = (app) => {
     router.get('/api/admin/users', authMiddleware, adminMiddleware, AdminController.getUsers);
     router.post('/api/admin/users/:id/ban', authMiddleware, adminMiddleware, AdminController.banUser);
     router.post('/api/admin/users/deposit', authMiddleware, adminMiddleware, AdminController.addCoins);
+
+    // [MỚI] --- Quản lý Giao dịch Nạp tiền ---
+    router.get('/api/admin/transactions', authMiddleware, adminMiddleware, AdminController.getTransactions);
+    router.post('/api/admin/transactions/:id/approve', authMiddleware, adminMiddleware, AdminController.approveTrans);
+    router.post('/api/admin/transactions/:id/reject', authMiddleware, adminMiddleware, AdminController.rejectTrans);
 
 
     // ============================================

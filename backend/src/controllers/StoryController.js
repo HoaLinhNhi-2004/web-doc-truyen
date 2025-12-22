@@ -1,6 +1,6 @@
 import StoryService from '../services/StoryService.js';
-import jwt from 'jsonwebtoken'; // <-- MỚI: Để giải mã token
-import { UnlockedChapter } from '../models/index.js'; // <-- MỚI: Để check bảng mua chương
+import jwt from 'jsonwebtoken';
+import { UnlockedChapter } from '../models/index.js'; 
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,7 +14,7 @@ const StoryController = {
             const keyword = req.query.keyword || '';
             const sort = req.query.sort || 'latest';
             const categorySlug = req.query.category || '';
-            const timeframe = req.query.timeframe || ''; // Thêm tham số timeframe (day/week/month)
+            const timeframe = req.query.timeframe || '';
 
             const result = await StoryService.getAllStories({ page, limit, keyword, sort, categorySlug, timeframe });
 
@@ -60,7 +60,7 @@ const StoryController = {
         try {
             const { id } = req.params;
             
-            // 1. Lấy dữ liệu chương
+            // 1. Lấy dữ liệu chương (Bao gồm cả giá tiền)
             const chapter = await StoryService.getChapterContent(id);
 
             if (!chapter) {
@@ -68,14 +68,14 @@ const StoryController = {
             }
 
             // ========================================================
-            // 2. LOGIC KIỂM TRA QUYỀN (VIP CHECK) - MỚI THÊM
+            // 2. LOGIC KIỂM TRA QUYỀN (VIP CHECK)
             // ========================================================
             if (chapter.price > 0) {
                 // Bước A: Kiểm tra Token (Thủ công vì route này Public)
                 const authHeader = req.headers['authorization'];
                 const token = authHeader && authHeader.split(' ')[1];
 
-                // Nếu không có token -> Chặn luôn
+                // Nếu không có token (Chưa đăng nhập) -> Chặn luôn
                 if (!token) {
                     return res.status(403).json({ 
                         status: 'error', 
@@ -100,7 +100,7 @@ const StoryController = {
                     where: { user_id: userId, chapter_id: id }
                 });
 
-                // Nếu chưa mua -> Báo lỗi cần thanh toán
+                // Nếu chưa mua -> Báo lỗi cần thanh toán (402 Payment Required)
                 if (!isUnlocked) {
                     return res.status(402).json({ 
                         status: 'error', 
@@ -110,7 +110,7 @@ const StoryController = {
                     });
                 }
                 
-                // Nếu đã mua -> Code chạy tiếp xuống dưới để trả về ảnh
+                // Nếu đã mua -> Code chạy tiếp xuống dưới để trả về nội dung
             }
             // ========================================================
 
@@ -128,9 +128,8 @@ const StoryController = {
     increaseView: async (req, res) => {
         try {
             const { id } = req.params; // ID của truyện (Story ID)
-            const { chapterId } = req.body; // 👇 Lấy thêm chapterId từ body (nếu có)
+            const { chapterId } = req.body;
 
-            // Gọi service với cả 2 tham số
             await StoryService.incrementView(id, chapterId);
             
             return res.status(200).json({ status: 'success', message: 'Đã tăng view' });
