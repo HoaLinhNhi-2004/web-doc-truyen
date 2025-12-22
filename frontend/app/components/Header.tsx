@@ -21,7 +21,7 @@ export default function Header() {
   
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false); 
+  // Đã xóa state isScrolled vì không còn dùng nữa
   const [isDropdownOpen, setIsDropdownOpen] = useState(false); 
 
   const loadUser = useCallback(() => {
@@ -43,13 +43,7 @@ export default function Header() {
     }
   }, []);
 
-  useEffect(() => {
-    const handleScroll = () => {
-        setIsScrolled(window.scrollY > 20);
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  // Đã xóa useEffect handleScroll
 
   useEffect(() => {
     setMounted(true);
@@ -102,11 +96,10 @@ export default function Header() {
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.5 }}
-      className={`fixed inset-x-0 top-0 z-50 transition-all duration-300 border-b ${
-        isScrolled 
-            ? 'bg-white/80 dark:bg-black/80 backdrop-blur-md shadow-lg border-zinc-200 dark:border-zinc-800' 
-            : 'bg-transparent border-transparent py-2'
-      }`}
+      // --- THAY ĐỔI QUAN TRỌNG Ở ĐÂY ---
+      // 1. Dùng absolute thay vì fixed: Navbar sẽ nằm đè lên đầu trang nhưng bị cuộn đi.
+      // 2. Xóa các logic đổi màu nền: Giữ nguyên trong suốt (hoặc bạn có thể thêm màu nền cứng nếu muốn).
+      className="absolute inset-x-0 top-0 z-50 border-b border-transparent py-2"
     >
       <nav className="container mx-auto flex items-center justify-between p-4 h-16">
         {/* LOGO & MENU */}
@@ -145,13 +138,8 @@ export default function Header() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Tìm truyện..."
-              // [ĐÃ SỬA]
-              // 1. bg-zinc-100: Nền luôn là màu xám nhạt (kể cả dark mode)
-              // 2. text-zinc-900: Chữ luôn là màu đen (kể cả dark mode)
-              // 3. Xóa hết các thuộc tính dark: trong class này
               className="w-40 focus:w-64 transition-all duration-300 rounded-full border border-zinc-200 bg-zinc-100 px-4 py-2 pl-10 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-blue-500/50 placeholder-zinc-500"
             />
-            {/* Icon Search luôn màu xám tối để nổi trên nền sáng */}
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-blue-600 transition-colors" size={16} />
           </form>
 
